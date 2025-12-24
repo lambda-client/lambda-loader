@@ -1,5 +1,7 @@
 package com.lambda.lambdaLoader.util
 
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import com.lambda.lambdaLoader.config.ConfigManager
 import net.fabricmc.loader.impl.FabricLoaderImpl
 import net.fabricmc.loader.impl.launch.FabricLauncherBase
@@ -9,6 +11,7 @@ import net.fabricmc.loader.impl.metadata.DependencyOverrides
 import net.fabricmc.loader.impl.metadata.LoaderModMetadata
 import net.fabricmc.loader.impl.metadata.VersionOverrides
 import java.io.File
+import java.io.InputStreamReader
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path
@@ -20,7 +23,7 @@ object FabricUtil {
 
     private val logger: Logger = Logger.getLogger("Lambda-Loader")
 
-    fun injectAccessWidener(resourcePath: String = "lambda.accesswidener", namespace: String = "intermediary") {
+    fun injectAccessWidener(resourcePath: String, namespace: String = "intermediary") {
         try {
             // Get the existing ClassTweaker from FabricLoader
             val classTweaker = FabricLoaderImpl.INSTANCE.classTweaker as ClassTweakerImpl
@@ -265,6 +268,82 @@ object FabricUtil {
             logger.severe("Failed to add mod container to Fabric Loader: ${e.message}")
             e.printStackTrace()
             false
+        }
+    }
+
+    /**
+     * Reads the fabric.mod.json from a JAR file and returns it as a JsonObject
+     */
+    fun readFabricModJson(jarFile: File): JsonObject? {
+        return try {
+            ZipFile(jarFile).use { zip ->
+                val entry = zip.getEntry("fabric.mod.json")
+                    ?: throw IllegalArgumentException("No fabric.mod.json found in JAR: ${jarFile.name}")
+
+                val inputStream = zip.getInputStream(entry)
+                val reader = InputStreamReader(inputStream, Charsets.UTF_8)
+                val jsonObject = JsonParser.parseReader(reader).asJsonObject
+
+                if (ConfigManager.config.debug) {
+                    logger.info("Successfully read fabric.mod.json from ${jarFile.name}")
+                }
+                jsonObject
+            }
+        } catch (e: Exception) {
+            logger.severe("Failed to read fabric.mod.json from ${jarFile.name}: ${e.message}")
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * Gets the access widener file name from fabric.mod.json
+     * Returns null if no access widener is specified
+     */
+    fun getAccessWidenerFileName(jarFile: File): String? {
+        return try {
+            val json = readFabricModJson(jarFile) ?: return null
+
+            val accessWidener = json.get("accessWidener")?.asString
+
+            if (ConfigManager.config.debug && accessWidener != null) {
+                logger.info("Found access widener: $accessWidener in ${jarFile.name}")
+            }
+
+            accessWidener
+        } catch (e: Exception) {
+            logger.severe("Failed to get access widener from ${jarFile.name}: ${e.message}")
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * Gets the list of mixin configuration files from fabric.mod.json
+     * Returns an empty list if no mixins are specified
+     */
+    fun getMixinFileNames(jarFile: File): List<String> {
+        return try {
+            val json = readFabricModJson(jarFile) ?: return emptyList()
+
+            val mixins = mutableListOf<String>()
+
+            // Check for "mixins" field (array of strings)
+            json.get("mixins")?.asJsonArray?.forEach { element ->
+                if (element.isJsonPrimitive) {
+                    mixins.add(element.asString)
+                }
+            }
+
+            if (ConfigManager.config.debug && mixins.isNotEmpty()) {
+                logger.info("Found ${mixins.size} mixin config(s) in ${jarFile.name}: ${mixins.joinToString(", ")}")
+            }
+
+            mixins
+        } catch (e: Exception) {
+            logger.severe("Failed to get mixins from ${jarFile.name}: ${e.message}")
+            e.printStackTrace()
+            emptyList()
         }
     }
 

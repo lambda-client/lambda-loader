@@ -17,8 +17,11 @@ class LambdaLoaderInitializer : PreLaunchEntrypoint {
         FabricUtil.addToClassPath(latestVersion)
         FabricUtil.loadNestedJars(latestVersion)
         FabricUtil.registerModFromJar(latestVersion)
-        FabricUtil.injectAccessWidener()
-        Mixins.addConfiguration("lambda.mixins.common.json")
+        val accessWidenerPath = FabricUtil.getAccessWidenerFileName(latestVersion);
+        if(accessWidenerPath != null) FabricUtil.injectAccessWidener(accessWidenerPath)
+        for (mixinFile in FabricUtil.getMixinFileNames(latestVersion)) {
+            Mixins.addConfiguration(mixinFile)
+        }
 
     }
 
