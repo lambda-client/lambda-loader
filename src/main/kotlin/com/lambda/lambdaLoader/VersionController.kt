@@ -87,31 +87,6 @@ class VersionController(
                     logger.warning("No Lambda versions found for Minecraft $minecraftVersion")
                     logger.warning("Available versions: ${versions.joinToString(", ")}")
                 }
-
-                // Try to find closest version by matching major.minor version (e.g., 1.21.x)
-                val minecraftMajorMinor = minecraftVersion.split(".").take(2).joinToString(".")
-                val closeMatchVersions = versions.filter { version ->
-                    version.contains("+$minecraftMajorMinor.")
-                }
-
-                if (closeMatchVersions.isNotEmpty()) {
-                    val fallbackVersion = closeMatchVersions.last()
-                    if (ConfigManager.config.debug) {
-                        logger.warning("Falling back to closest version: $fallbackVersion")
-                    }
-                    return fallbackVersion
-                }
-
-                // Last resort: use the latest available version
-                if (versions.isNotEmpty()) {
-                    val lastResortVersion = versions.last()
-                    if (ConfigManager.config.debug) {
-                        logger.warning("No close match found. Using latest available version: $lastResortVersion")
-                        logger.warning("This may cause compatibility issues!")
-                    }
-                    return lastResortVersion
-                }
-
                 return null
             }
 
@@ -192,14 +167,30 @@ class VersionController(
 
     private fun getJarUrl(): String? {
         return when (ConfigManager.config.releaseMode) {
-            ReleaseMode.STABLE -> getReleaseJarUrl()
+            ReleaseMode.STABLE -> {
+                val releaseUrl = getReleaseJarUrl()
+                if (releaseUrl == null) {
+                    logger.warning("No stable version found for Minecraft $minecraftVersion, falling back to snapshot")
+                    getSnapshotJarUrl()
+                } else {
+                    releaseUrl
+                }
+            }
             ReleaseMode.SNAPSHOT -> getSnapshotJarUrl()
         }
     }
 
     private fun getChecksumUrl(): String? {
         return when (ConfigManager.config.releaseMode) {
-            ReleaseMode.STABLE -> getReleaseChecksumUrl()
+            ReleaseMode.STABLE -> {
+                val releaseChecksumUrl = getReleaseChecksumUrl()
+                if (releaseChecksumUrl == null) {
+                    logger.warning("No stable version checksum found for Minecraft $minecraftVersion, falling back to snapshot")
+                    getSnapshotChecksumUrl()
+                } else {
+                    releaseChecksumUrl
+                }
+            }
             ReleaseMode.SNAPSHOT -> getSnapshotChecksumUrl()
         }
     }
@@ -207,8 +198,15 @@ class VersionController(
     private fun getCacheFileName(): String? {
         return when (ConfigManager.config.releaseMode) {
             ReleaseMode.STABLE -> {
-                val version = checkReleasesVersion() ?: return null
-                "lambda-$version.jar"
+                val version = checkReleasesVersion()
+                if (version == null) {
+                    logger.warning("No stable cache filename found for Minecraft $minecraftVersion, falling back to snapshot")
+                    val snapshotInfo = getLatestSnapshotInfo() ?: return null
+                    val baseVersion = snapshotInfo.version.replace("-SNAPSHOT", "")
+                    "lambda-$baseVersion-${snapshotInfo.timestamp}-${snapshotInfo.buildNumber}.jar"
+                } else {
+                    "lambda-$version.jar"
+                }
             }
 
             ReleaseMode.SNAPSHOT -> {
@@ -318,7 +316,23 @@ class VersionController(
         return try {
             // Ensure the latest version is cached
             if (!ensureLatestVersionCached()) {
-                logger.severe("Failed to ensure latest version is cached")
+                // Check if both stable and snapshot versions are unavailable
+                val stableVersion = checkReleasesVersion()
+                val snapshotVersion = checkSnapshotVersion()
+
+                if (stableVersion == null && snapshotVersion == null) {
+                    logger.severe("═══════════════════════════════════════════════════════════")
+                    logger.severe("FATAL ERROR: No Lambda Client version found!")
+                    logger.severe("Minecraft version: $minecraftVersion")
+                    logger.severe("Neither STABLE nor SNAPSHOT versions are available for this Minecraft version.")
+                    logger.severe("Please check:")
+                    logger.severe("  1. Your internet connection")
+                    logger.severe("  2. Maven repository availability at: $mavenUrl")
+                    logger.severe("  3. If Lambda Client supports Minecraft $minecraftVersion")
+                    logger.severe("═══════════════════════════════════════════════════════════")
+                } else {
+                    logger.severe("Failed to ensure latest version is cached")
+                }
                 return null
             }
 

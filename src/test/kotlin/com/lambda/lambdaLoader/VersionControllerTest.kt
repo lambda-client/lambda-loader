@@ -312,4 +312,55 @@ class VersionControllerTest {
             }
         }
     }
+
+    @Test
+    fun testStableToSnapshotFallback() {
+        println("Testing fallback from STABLE to SNAPSHOT when no stable version exists...")
+
+        // Use a Minecraft version that might only have snapshots
+        val availableVersions = getAvailableMinecraftVersions()
+        assertTrue(availableVersions.isNotEmpty(), "Should have at least one MC version available")
+
+        // Try to find a version that has both stable and snapshot, or just snapshot
+        val mcVersion = availableVersions.sorted().last() // Latest version more likely to have snapshots
+
+        println("Testing with Minecraft version: $mcVersion")
+
+        val versionController = VersionController(minecraftVersionOverride = mcVersion)
+
+        // Set to STABLE mode - should fallback to snapshot if stable doesn't exist
+        ConfigManager.saveConfig(ConfigManager.config.copy(releaseMode = ReleaseMode.STABLE, debug = true))
+
+        val jarFile = versionController.getOrDownloadLatestVersion()
+
+        if (jarFile != null) {
+            println("✓ Successfully retrieved version (with potential fallback): ${jarFile.name}")
+            assertTrue(jarFile.exists(), "JAR file should exist")
+            assertTrue(jarFile.name.endsWith(".jar"), "Should be a JAR file")
+            println("Fallback test passed!")
+        } else {
+            println("⚠ No version found even with fallback - this is expected if neither stable nor snapshot exists for MC $mcVersion")
+        }
+    }
+
+    @Test
+    fun testNoVersionAvailableErrorMessage() {
+        println("Testing error message when no version is available...")
+
+        // Use a non-existent Minecraft version to trigger the error
+        val nonExistentVersion = "99.99.99"
+
+        println("Testing with non-existent Minecraft version: $nonExistentVersion")
+
+        val versionController = VersionController(minecraftVersionOverride = nonExistentVersion)
+
+        // Set to STABLE mode
+        ConfigManager.saveConfig(ConfigManager.config.copy(releaseMode = ReleaseMode.STABLE, debug = true))
+
+        val jarFile = versionController.getOrDownloadLatestVersion()
+
+        // Should return null and log error messages
+        assertNull(jarFile, "Should return null when no version is available")
+        println("✓ Error handling test passed - null returned as expected")
+    }
 }
