@@ -14,7 +14,7 @@
   "environment": "client",
   "entrypoints": {
     "preLaunch": [
-      "com.lambda.lambdaLoader.LambdaLoaderInitializer"
+      "com.lambda.loader.LambdaLoaderInitializer"
     ]
   },
 
