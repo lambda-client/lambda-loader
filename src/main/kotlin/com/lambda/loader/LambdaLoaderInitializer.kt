@@ -2,13 +2,21 @@ package com.lambda.loader
 
 import com.lambda.loader.config.ConfigManager
 import com.lambda.loader.util.FabricUtil
+import com.lambda.loader.util.SimpleLogFormatter
 import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint
 import org.spongepowered.asm.mixin.Mixins
+import java.util.logging.ConsoleHandler
 import java.util.logging.Logger
 import kotlin.system.exitProcess
 
 class LambdaLoaderInitializer : PreLaunchEntrypoint {
-    val logger: Logger = Logger.getLogger("Lambda-Loader")
+    val logger: Logger = Logger.getLogger("Lambda-Loader").also {
+        // Configure logger to use simple format
+        it.useParentHandlers = false
+        val handler = ConsoleHandler()
+        handler.formatter = SimpleLogFormatter()
+        it.addHandler(handler)
+    }
 
     override fun onPreLaunch() {
         // Check for loader self-updates first

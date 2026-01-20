@@ -90,3 +90,11 @@ jobs:
           name: Lambda-Loader-${{ steps.version.outputs.version }}
           path: build/libs/*.jar
           if-no-files-found: error
+
+      - name: Upload JARs to GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/libs/*.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
