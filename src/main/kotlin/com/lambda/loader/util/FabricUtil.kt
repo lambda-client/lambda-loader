@@ -59,14 +59,23 @@ object FabricUtil {
     /**
      * Loads nested JARs from META-INF/jars/ directory and adds them to classpath
      * Fabric Loader stores bundled dependencies in this directory for jar-in-jar functionality
-     * Extracts nested JARs to temp directory for classpath access
+     * Extracts nested JARs to a consistent temp directory that's cleared on each run
      */
     fun loadNestedJars(jarFile: File): List<Path> {
         val nestedJarPaths = mutableListOf<Path>()
 
         try {
-            // Create temp directory for nested JARs
-            val tempDir = Files.createTempDirectory("lambda-loader-nested")
+            // Use a consistent temp directory location
+            val tempDir = Path.of(System.getProperty("java.io.tmpdir"), "lambda-loader-nested")
+
+            // Clear the directory if it exists, then recreate it
+            if (Files.exists(tempDir)) {
+                Files.walk(tempDir)
+                    .sorted(Comparator.reverseOrder())
+                    .forEach { Files.deleteIfExists(it) }
+            }
+            Files.createDirectories(tempDir)
+
             if (ConfigManager.config.debug) {
                 logger.info("Created temp directory for nested JARs: $tempDir")
             }
@@ -143,10 +152,8 @@ object FabricUtil {
 
                 val versionOverrides = VersionOverrides()
 
-                // DependencyOverrides takes a Path parameter - use a temporary directory
-                val tempPath = Files.createTempDirectory("lambda-loader-deps")
-                val depOverrides = DependencyOverrides(tempPath)
-
+                // DependencyOverrides takes a Path parameter - use empty path since it isn't used
+                val depOverrides = DependencyOverrides(Path.of(""))
                 val metadata = parseMetadataMethod.invoke(
                     null, // static method
                     zip.getInputStream(entry),
