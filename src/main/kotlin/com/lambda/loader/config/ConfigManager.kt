@@ -2,52 +2,55 @@ package com.lambda.loader.config
 
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonObject
 import java.io.File
 
 object ConfigManager {
 
-    private val configFile: File = File("lambda", "loader.json")
+    private val configFile: File = File("lambda/config", "modules.json")
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
 
     var config: Config = loadConfig()
-        private set
 
     private fun loadConfig(): Config {
         return if (configFile.exists()) {
             try {
                 val json = configFile.readText()
-                val loadedConfig = gson.fromJson(json, Config::class.java)
+                val rootObject = gson.fromJson(json, JsonObject::class.java)
 
-                // Merge with defaults to handle new fields
-                val defaultConfig = Config()
-                val mergedConfig = Config(
-                    clientReleaseMode = loadedConfig?.clientReleaseMode ?: defaultConfig.clientReleaseMode,
-                    loaderReleaseMode = loadedConfig?.loaderReleaseMode ?: defaultConfig.loaderReleaseMode,
-                    debug = loadedConfig?.debug ?: defaultConfig.debug
-                )
+                // Extract AutoUpdater object
+                val autoUpdater = rootObject.getAsJsonObject("AutoUpdater")
 
-                // Save merged config to add any new fields
-                saveConfig(mergedConfig)
-                mergedConfig
-            } catch (e: Exception) {
+                if (autoUpdater != null) {
+                    val debug = autoUpdater.get("Debug")?.asBoolean ?: false
+                    val loaderBranch = autoUpdater.get("Loader Branch")?.asString ?: "RELEASE"
+                    val clientBranch = autoUpdater.get("Client Branch")?.asString ?: "RELEASE"
+
+                    Config(
+                        clientReleaseMode = branchToReleaseMode(clientBranch),
+                        loaderReleaseMode = branchToReleaseMode(loaderBranch),
+                        debug = debug
+                    )
+                } else {
+                    // AutoUpdater section doesn't exist, use defaults
+                    Config()
+                }
+            } catch (_: Exception) {
                 // If parsing fails, use defaults
-                val defaultConfig = Config()
-                saveConfig(defaultConfig)
-                defaultConfig
+                Config()
             }
         } else {
-            val defaultConfig = Config()
-            saveConfig(defaultConfig)
-            defaultConfig
+            // Config file doesn't exist, use defaults
+            Config()
         }
     }
 
-    fun saveConfig(config: Config) {
-        if (!configFile.parentFile.exists()) {
-            configFile.parentFile.mkdirs()
+    private fun branchToReleaseMode(branch: String): ReleaseMode {
+        return when (branch.uppercase()) {
+            "RELEASE", "STABLE" -> ReleaseMode.STABLE
+            "SNAPSHOT" -> ReleaseMode.SNAPSHOT
+            else -> ReleaseMode.STABLE
         }
-        val json = gson.toJson(config)
-        configFile.writeText(json)
-        this.config = config
     }
+
 }

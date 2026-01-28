@@ -15,7 +15,7 @@ class LoaderVersionController(
      * The maven repository URL for the loader artifacts.
      * Can be overridden for testing or custom repositories.
      */
-    loaderMavenUrl: String = "https://maven.thcfree.dev"
+    loaderMavenUrl: String = "https://maven.lambda-client.org"
 ) : BaseMavenVersionController(cache, versionMatchingEnabled = false) {
 
     override val mavenUrl: String = loaderMavenUrl
@@ -48,7 +48,7 @@ class LoaderVersionController(
 
             if (loaderMod.isPresent) {
                 val version = loaderMod.get().metadata.version.friendlyString
-                if (com.lambda.loader.config.ConfigManager.config.debug) {
+                if (ConfigManager.config.debug) {
                     logger.info("Current loader version: $version")
                 }
                 return version
@@ -85,7 +85,7 @@ class LoaderVersionController(
             val currentVersion = getCurrentLoaderVersion()
 
             // Try to get latest version based on release mode, with fallback
-            var latestVersion = when (getReleaseMode()) {
+            val latestVersion = when (getReleaseMode()) {
                 ReleaseMode.STABLE -> {
                     val releaseVersion = checkReleasesVersion()
                     if (releaseVersion == null) {
