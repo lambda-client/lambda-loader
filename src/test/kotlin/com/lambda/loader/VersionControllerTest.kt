@@ -90,7 +90,7 @@ class VersionControllerTest {
 
         // Test STABLE mode
         println("Checking STABLE releases for MC $mcVersion...")
-        ConfigManager.saveConfig(ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE))
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE)
 
         val stableJar = versionController.getOrDownloadLatestVersion()
         if (stableJar != null) {
@@ -105,7 +105,7 @@ class VersionControllerTest {
 
         // Test SNAPSHOT mode
         println("Checking SNAPSHOT releases for MC $mcVersion...")
-        ConfigManager.saveConfig(ConfigManager.config.copy(clientReleaseMode = ReleaseMode.SNAPSHOT))
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.SNAPSHOT)
 
         val snapshotJar = versionController.getOrDownloadLatestVersion()
         if (snapshotJar != null) {
@@ -136,7 +136,7 @@ class VersionControllerTest {
         val versionController = VersionController(minecraftVersionOverride = mcVersion)
 
         // Set to STABLE mode
-        ConfigManager.saveConfig(ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE))
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE)
 
         val jarFile = versionController.getOrDownloadLatestVersion()
 
@@ -166,7 +166,7 @@ class VersionControllerTest {
         val versionController = VersionController(minecraftVersionOverride = mcVersion)
 
         // Set to SNAPSHOT mode
-        ConfigManager.saveConfig(ConfigManager.config.copy(clientReleaseMode = ReleaseMode.SNAPSHOT))
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.SNAPSHOT)
 
         val jarFile = versionController.getOrDownloadLatestVersion()
 
@@ -194,7 +194,7 @@ class VersionControllerTest {
 
         val versionController = VersionController(minecraftVersionOverride = mcVersion)
 
-        ConfigManager.saveConfig(ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE))
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE)
 
         // First call - should download
         val jarFile1 = versionController.getOrDownloadLatestVersion()
@@ -224,7 +224,7 @@ class VersionControllerTest {
 
         val versionController = VersionController(minecraftVersionOverride = mcVersion)
 
-        ConfigManager.saveConfig(ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE))
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE)
 
         val jarFile = versionController.getOrDownloadLatestVersion()
         assertNotNull(jarFile, "JAR file should not be null")
@@ -250,13 +250,13 @@ class VersionControllerTest {
         val versionController = VersionController(minecraftVersionOverride = mcVersion)
 
         // Get STABLE version
-        ConfigManager.saveConfig(ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE))
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE)
         val stableJar = versionController.getOrDownloadLatestVersion()
         assertNotNull(stableJar, "STABLE JAR should not be null")
         println("STABLE: ${stableJar!!.name}")
 
         // Switch to SNAPSHOT
-        ConfigManager.saveConfig(ConfigManager.config.copy(clientReleaseMode = ReleaseMode.SNAPSHOT))
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.SNAPSHOT)
         val snapshotJar = versionController.getOrDownloadLatestVersion()
         assertNotNull(snapshotJar, "SNAPSHOT JAR should not be null")
         println("SNAPSHOT: ${snapshotJar!!.name}")
@@ -284,7 +284,7 @@ class VersionControllerTest {
             val versionController = VersionController(minecraftVersionOverride = mcVersion)
 
             // Test SNAPSHOT mode (more likely to have versions available)
-            ConfigManager.saveConfig(ConfigManager.config.copy(clientReleaseMode = ReleaseMode.SNAPSHOT))
+            ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.SNAPSHOT)
             val jarFile = versionController.getOrDownloadLatestVersion()
 
             if (jarFile != null) {
@@ -329,7 +329,7 @@ class VersionControllerTest {
         val versionController = VersionController(minecraftVersionOverride = mcVersion)
 
         // Set to STABLE mode - should fallback to snapshot if stable doesn't exist
-        ConfigManager.saveConfig(ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE, debug = true))
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE, debug = true)
 
         val jarFile = versionController.getOrDownloadLatestVersion()
 
@@ -355,7 +355,7 @@ class VersionControllerTest {
         val versionController = VersionController(minecraftVersionOverride = nonExistentVersion)
 
         // Set to STABLE mode
-        ConfigManager.saveConfig(ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE, debug = true))
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE, debug = true)
 
         val jarFile = versionController.getOrDownloadLatestVersion()
 
