@@ -3,6 +3,8 @@ package com.lambda.loader.util
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.lambda.loader.config.ConfigManager
+import com.lambda.loader.util.FabricUtil.loadMetadataFromJar
+import com.lambda.loader.util.FabricUtil.readFabricModJson
 import net.fabricmc.loader.impl.FabricLoaderImpl
 import net.fabricmc.loader.impl.launch.FabricLauncherBase
 import net.fabricmc.loader.impl.lib.classtweaker.impl.ClassTweakerImpl
@@ -20,28 +22,17 @@ import java.util.logging.Logger
 import java.util.zip.ZipFile
 
 object FabricUtil {
-
     private val logger: Logger = Logger.getLogger("Lambda-Loader")
 
     fun injectAccessWidener(resourcePath: String, namespace: String = "intermediary") {
         try {
-            // Get the existing ClassTweaker from FabricLoader
             val classTweaker = FabricLoaderImpl.INSTANCE.classTweaker as ClassTweakerImpl
-
-            // Create a reader with the ClassTweaker as the visitor
             val reader = ClassTweakerReaderImpl(classTweaker)
-
-            // Read from resource
             val content = this::class.java.classLoader.getResourceAsStream(resourcePath)
                 ?.readBytes()
                 ?: throw IllegalArgumentException("Access widener file not found: $resourcePath")
-
-            // Read into the ClassTweaker (which creates AccessWidenerImpl instances internally)
             reader.read(content, namespace)
-
-            if (ConfigManager.config.debug) {
-                logger.info("Successfully loaded access widener from $resourcePath")
-            }
+            if (ConfigManager.config.debug) logger.info("Successfully loaded access widener from $resourcePath")
         } catch (e: Exception) {
             logger.severe("Failed to inject access widener: ${e.message}")
             e.printStackTrace()
@@ -65,10 +56,8 @@ object FabricUtil {
         val nestedJarPaths = mutableListOf<Path>()
 
         try {
-            // Use a consistent temp directory location
             val tempDir = Path.of(System.getProperty("java.io.tmpdir"), "lambda-loader-nested")
 
-            // Clear the directory if it exists, then recreate it
             if (Files.exists(tempDir)) {
                 Files.walk(tempDir)
                     .sorted(Comparator.reverseOrder())
@@ -76,14 +65,10 @@ object FabricUtil {
             }
             Files.createDirectories(tempDir)
 
-            if (ConfigManager.config.debug) {
-                logger.info("Created temp directory for nested JARs: $tempDir")
-            }
+            if (ConfigManager.config.debug) logger.info("Created temp directory for nested JARs: $tempDir")
 
-            // Create URI for the JAR file system
             val jarUri = java.net.URI.create("jar:${jarFile.toURI()}")
 
-            // Open the JAR as a file system
             FileSystems.newFileSystem(jarUri, mapOf<String, Any>()).use { fs ->
                 val jarsDir = fs.getPath("META-INF/jars")
 
@@ -92,11 +77,8 @@ object FabricUtil {
                         stream.filter { path ->
                             Files.isRegularFile(path) && path.toString().endsWith(".jar")
                         }.forEach { nestedJarPath ->
-                            if (ConfigManager.config.debug) {
-                                logger.info("Found nested JAR: $nestedJarPath")
-                            }
+                            if (ConfigManager.config.debug) logger.info("Found nested JAR: $nestedJarPath")
 
-                            // Extract to temp directory
                             val targetPath = tempDir.resolve(nestedJarPath.fileName.toString())
                             Files.copy(
                                 nestedJarPath,
@@ -104,21 +86,16 @@ object FabricUtil {
                                 StandardCopyOption.REPLACE_EXISTING
                             )
 
-                            // Add extracted JAR to classpath
                             addToClassPath(targetPath)
                             nestedJarPaths.add(targetPath)
 
-                            if (ConfigManager.config.debug) {
-                                logger.info("Extracted and added nested JAR to classpath: ${nestedJarPath.fileName}")
-                            }
+                            if (ConfigManager.config.debug) logger.info("Extracted and added nested JAR to classpath: ${nestedJarPath.fileName}")
                         }
                     }
                 }
             }
 
-            if (ConfigManager.config.debug) {
-                logger.info("Successfully loaded ${nestedJarPaths.size} nested JARs from ${jarFile.name}")
-            }
+            if (ConfigManager.config.debug) logger.info("Successfully loaded ${nestedJarPaths.size} nested JARs from ${jarFile.name}")
         } catch (e: Exception) {
             logger.severe("Failed to load nested JARs: ${e.message}")
             e.printStackTrace()
@@ -137,7 +114,6 @@ object FabricUtil {
                 val entry = zip.getEntry("fabric.mod.json")
                     ?: throw IllegalArgumentException("No fabric.mod.json found in JAR")
 
-                // Use ModMetadataParser to parse the metadata
                 val parserClass = Class.forName("net.fabricmc.loader.impl.metadata.ModMetadataParser")
                 val parseMetadataMethod = parserClass.getDeclaredMethod(
                     "parseMetadata",
@@ -164,9 +140,7 @@ object FabricUtil {
                     false // isDevelopment
                 ) as LoaderModMetadata
 
-                if (ConfigManager.config.debug) {
-                    logger.info("Successfully loaded metadata from JAR: ${metadata.id}")
-                }
+                if (ConfigManager.config.debug) logger.info("Successfully loaded metadata from JAR: ${metadata.id}")
                 metadata
             }
         } catch (e: Exception) {
@@ -183,7 +157,6 @@ object FabricUtil {
         return try {
             val modCandidateClass = Class.forName("net.fabricmc.loader.impl.discovery.ModCandidateImpl")
 
-            // Use the createPlain static factory method
             val createPlainMethod = modCandidateClass.getDeclaredMethod(
                 "createPlain",
                 List::class.java,
@@ -193,7 +166,6 @@ object FabricUtil {
             )
             createPlainMethod.isAccessible = true
 
-            // Create a mod candidate with the JAR file path - just like Fabric Loader does
             val candidate = createPlainMethod.invoke(
                 null, // static method
                 listOf(jarFile.toPath()), // provide the JAR file path
@@ -202,9 +174,7 @@ object FabricUtil {
                 emptyList<Any>() // nested mods
             )
 
-            if (ConfigManager.config.debug) {
-                logger.info("Successfully created mod candidate for ${metadata.id} with JAR path: ${jarFile.absolutePath}")
-            }
+            if (ConfigManager.config.debug) logger.info("Successfully created mod candidate for ${metadata.id} with JAR path: ${jarFile.absolutePath}")
             candidate
         } catch (e: Exception) {
             logger.severe("Failed to create mod candidate: ${e.message}")
@@ -221,14 +191,11 @@ object FabricUtil {
             val modContainerClass = Class.forName("net.fabricmc.loader.impl.ModContainerImpl")
             val modCandidateClass = Class.forName("net.fabricmc.loader.impl.discovery.ModCandidateImpl")
 
-            // ModContainerImpl(ModCandidateImpl candidate)
             val constructor = modContainerClass.getDeclaredConstructor(modCandidateClass)
             constructor.isAccessible = true
 
             val container = constructor.newInstance(candidate)
-            if (ConfigManager.config.debug) {
-                logger.info("Successfully converted candidate to mod container")
-            }
+            if (ConfigManager.config.debug) logger.info("Successfully converted candidate to mod container")
             container
         } catch (e: Exception) {
             logger.severe("Failed to convert candidate to container: ${e.message}")
@@ -244,7 +211,6 @@ object FabricUtil {
         return try {
             val loader = FabricLoaderImpl.INSTANCE
 
-            // Get the mods field
             val loaderClass = loader::class.java
             val modsField = loaderClass.getDeclaredField("mods")
             modsField.isAccessible = true
@@ -253,23 +219,20 @@ object FabricUtil {
             val modsList = modsField.get(loader) as MutableList<Any>
             modsList.add(container)
 
-            // Also need to add to modMap (Map<String, ModContainerImpl>)also
             val modMapField = loaderClass.getDeclaredField("modMap")
             modMapField.isAccessible = true
 
             @Suppress("UNCHECKED_CAST")
             val modMap = modMapField.get(loader) as MutableMap<String, Any>
-            // Get the mod ID from the container
             val getMetadataMethod = container::class.java.getDeclaredMethod("getMetadata")
+
             getMetadataMethod.isAccessible = true
             val metadata = getMetadataMethod.invoke(container) as LoaderModMetadata
             val modId = metadata.id
 
             modMap[modId] = container
 
-            if (ConfigManager.config.debug) {
-                logger.info("Successfully added mod container for $modId to Fabric Loader")
-            }
+            if (ConfigManager.config.debug) logger.info("Successfully added mod container for $modId to Fabric Loader")
             true
         } catch (e: Exception) {
             logger.severe("Failed to add mod container to Fabric Loader: ${e.message}")
@@ -291,9 +254,7 @@ object FabricUtil {
                 val reader = InputStreamReader(inputStream, Charsets.UTF_8)
                 val jsonObject = JsonParser.parseReader(reader).asJsonObject
 
-                if (ConfigManager.config.debug) {
-                    logger.info("Successfully read fabric.mod.json from ${jarFile.name}")
-                }
+                if (ConfigManager.config.debug) logger.info("Successfully read fabric.mod.json from ${jarFile.name}")
                 jsonObject
             }
         } catch (e: Exception) {
@@ -313,9 +274,7 @@ object FabricUtil {
 
             val accessWidener = json.get("accessWidener")?.asString
 
-            if (ConfigManager.config.debug && accessWidener != null) {
-                logger.info("Found access widener: $accessWidener in ${jarFile.name}")
-            }
+            if (ConfigManager.config.debug && accessWidener != null) logger.info("Found access widener: $accessWidener in ${jarFile.name}")
 
             accessWidener
         } catch (e: Exception) {
@@ -335,16 +294,14 @@ object FabricUtil {
 
             val mixins = mutableListOf<String>()
 
-            // Check for "mixins" field (array of strings)
             json.get("mixins")?.asJsonArray?.forEach { element ->
                 if (element.isJsonPrimitive) {
                     mixins.add(element.asString)
                 }
             }
 
-            if (ConfigManager.config.debug && mixins.isNotEmpty()) {
+            if (ConfigManager.config.debug && mixins.isNotEmpty())
                 logger.info("Found ${mixins.size} mixin config(s) in ${jarFile.name}: ${mixins.joinToString(", ")}")
-            }
 
             mixins
         } catch (e: Exception) {

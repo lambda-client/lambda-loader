@@ -4,14 +4,13 @@ import com.lambda.loader.config.ConfigManager
 import com.lambda.loader.util.FabricUtil
 import com.lambda.loader.util.SimpleLogFormatter
 import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint
+import net.minecraft.client.MinecraftClient
 import org.spongepowered.asm.mixin.Mixins
 import java.util.logging.ConsoleHandler
 import java.util.logging.Logger
-import kotlin.system.exitProcess
 
-class LambdaLoaderInitializer : PreLaunchEntrypoint {
+class LoaderInitializer : PreLaunchEntrypoint {
     val logger: Logger = Logger.getLogger("Lambda-Loader").also {
-        // Configure logger to use simple format
         it.useParentHandlers = false
         val handler = ConsoleHandler()
         handler.formatter = SimpleLogFormatter()
@@ -19,10 +18,7 @@ class LambdaLoaderInitializer : PreLaunchEntrypoint {
     }
 
     override fun onPreLaunch() {
-        // Check for loader self-updates first
         checkForLoaderUpdate()
-
-        // Then load Lambda Client
         loadClient()
     }
 
@@ -39,7 +35,6 @@ class LambdaLoaderInitializer : PreLaunchEntrypoint {
                 logger.info("Latest version: ${updateInfo.latestVersion}")
                 logger.info("═══════════════════════════════════════════════════════════")
 
-                // Apply the update
                 val applied = updater.applyUpdate(updateInfo)
 
                 if (applied) {
@@ -48,32 +43,26 @@ class LambdaLoaderInitializer : PreLaunchEntrypoint {
                     logger.info("Please restart Minecraft to use the new version.")
                     logger.info("═══════════════════════════════════════════════════════════")
 
-                    // Exit to force restart with new loader
-                    // User will need to restart Minecraft manually
-                    exitProcess(0)
+                    MinecraftClient.getInstance().stop()
                 } else {
                     logger.warning("Failed to apply loader update, continuing with current version")
+                    updater.restoreFromBackup()
                 }
-            } else {
-                if (ConfigManager.config.debug) {
-                    logger.info("Lambda-Loader is up to date (${updateInfo.currentVersion ?: "unknown"})")
-                }
-            }
+            } else if (ConfigManager.config.debug) logger.info("Lambda-Loader is up to date (${updateInfo.currentVersion ?: "unknown"})")
         } catch (e: Exception) {
             logger.warning("Error checking for loader updates: ${e.message}")
-            if (ConfigManager.config.debug) {
-                e.printStackTrace()
-            }
+            if (ConfigManager.config.debug) e.printStackTrace()
             logger.info("Continuing with current loader version")
         }
     }
 
     private fun loadClient() {
         logger.info("Loading Lambda Client...")
-        val latestVersion = VersionController().getOrDownloadLatestVersion()
+        val latestVersion = LambdaVersionController().getOrDownloadLatestVersion()
         if (latestVersion == null) {
             logger.severe("Failed to download latest lambda stopping!")
-            exitProcess(0)
+            MinecraftClient.getInstance().stop()
+            return
         }
 
         FabricUtil.addToClassPath(latestVersion)

@@ -18,39 +18,29 @@ object ConfigManager {
                 val json = configFile.readText()
                 val rootObject = gson.fromJson(json, JsonObject::class.java)
 
-                // Extract AutoUpdater object
                 val autoUpdater = rootObject.getAsJsonObject("AutoUpdater")
 
                 if (autoUpdater != null) {
                     val debug = autoUpdater.get("Debug")?.asBoolean ?: false
-                    val loaderBranch = autoUpdater.get("Loader Branch")?.asString ?: "RELEASE"
-                    val clientBranch = autoUpdater.get("Client Branch")?.asString ?: "RELEASE"
+                    val clientBranch = autoUpdater.get("Client Branch")?.asString ?: "Snapshot"
+                    val loaderBranch = autoUpdater.get("Loader Branch")?.asString ?: "Stable"
 
                     Config(
                         clientReleaseMode = branchToReleaseMode(clientBranch),
                         loaderReleaseMode = branchToReleaseMode(loaderBranch),
                         debug = debug
                     )
-                } else {
-                    // AutoUpdater section doesn't exist, use defaults
-                    Config()
-                }
+                } else Config()
             } catch (_: Exception) {
-                // If parsing fails, use defaults
                 Config()
             }
-        } else {
-            // Config file doesn't exist, use defaults
-            Config()
-        }
+        } else Config()
     }
 
     private fun branchToReleaseMode(branch: String): ReleaseMode {
         return when (branch.uppercase()) {
-            "RELEASE", "STABLE" -> ReleaseMode.STABLE
-            "SNAPSHOT" -> ReleaseMode.SNAPSHOT
-            else -> ReleaseMode.STABLE
+            "Stable" -> ReleaseMode.Stable
+            else -> ReleaseMode.Snapshot
         }
     }
-
 }

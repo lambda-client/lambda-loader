@@ -9,7 +9,7 @@ import org.junit.jupiter.api.TestFactory
 import java.net.URI
 import javax.xml.parsers.DocumentBuilderFactory
 
-class VersionControllerTest {
+class LambdaVersionControllerTest {
 
     // We'll create the VersionController in each test with the appropriate MC version
     // This is necessary because FabricLoader is not available in the test environment
@@ -86,11 +86,11 @@ class VersionControllerTest {
         println("\n=== Testing Minecraft version: $mcVersion ===")
 
         // Create VersionController with the specific MC version for testing
-        val versionController = VersionController(minecraftVersionOverride = mcVersion)
+        val versionController = LambdaVersionController(minecraftVersionOverride = mcVersion)
 
         // Test STABLE mode
         println("Checking STABLE releases for MC $mcVersion...")
-        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE)
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Stable)
 
         val stableJar = versionController.getOrDownloadLatestVersion()
         if (stableJar != null) {
@@ -105,7 +105,7 @@ class VersionControllerTest {
 
         // Test SNAPSHOT mode
         println("Checking SNAPSHOT releases for MC $mcVersion...")
-        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.SNAPSHOT)
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Snapshot)
 
         val snapshotJar = versionController.getOrDownloadLatestVersion()
         if (snapshotJar != null) {
@@ -133,10 +133,10 @@ class VersionControllerTest {
         assertTrue(availableVersions.isNotEmpty(), "Should have at least one MC version available")
         val mcVersion = availableVersions.sorted().first()
 
-        val versionController = VersionController(minecraftVersionOverride = mcVersion)
+        val versionController = LambdaVersionController(minecraftVersionOverride = mcVersion)
 
         // Set to STABLE mode
-        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE)
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Stable)
 
         val jarFile = versionController.getOrDownloadLatestVersion()
 
@@ -163,10 +163,10 @@ class VersionControllerTest {
         assertTrue(availableVersions.isNotEmpty(), "Should have at least one MC version available")
         val mcVersion = availableVersions.sorted().first()
 
-        val versionController = VersionController(minecraftVersionOverride = mcVersion)
+        val versionController = LambdaVersionController(minecraftVersionOverride = mcVersion)
 
         // Set to SNAPSHOT mode
-        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.SNAPSHOT)
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Snapshot)
 
         val jarFile = versionController.getOrDownloadLatestVersion()
 
@@ -192,9 +192,9 @@ class VersionControllerTest {
         assertTrue(availableVersions.isNotEmpty(), "Should have at least one MC version available")
         val mcVersion = availableVersions.sorted().first()
 
-        val versionController = VersionController(minecraftVersionOverride = mcVersion)
+        val versionController = LambdaVersionController(minecraftVersionOverride = mcVersion)
 
-        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE)
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Stable)
 
         // First call - should download
         val jarFile1 = versionController.getOrDownloadLatestVersion()
@@ -222,9 +222,9 @@ class VersionControllerTest {
         assertTrue(availableVersions.isNotEmpty(), "Should have at least one MC version available")
         val mcVersion = availableVersions.sorted().first()
 
-        val versionController = VersionController(minecraftVersionOverride = mcVersion)
+        val versionController = LambdaVersionController(minecraftVersionOverride = mcVersion)
 
-        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE)
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Stable)
 
         val jarFile = versionController.getOrDownloadLatestVersion()
         assertNotNull(jarFile, "JAR file should not be null")
@@ -247,16 +247,16 @@ class VersionControllerTest {
         assertTrue(availableVersions.isNotEmpty(), "Should have at least one MC version available")
         val mcVersion = availableVersions.sorted().first()
 
-        val versionController = VersionController(minecraftVersionOverride = mcVersion)
+        val versionController = LambdaVersionController(minecraftVersionOverride = mcVersion)
 
         // Get STABLE version
-        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE)
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Stable)
         val stableJar = versionController.getOrDownloadLatestVersion()
         assertNotNull(stableJar, "STABLE JAR should not be null")
         println("STABLE: ${stableJar!!.name}")
 
         // Switch to SNAPSHOT
-        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.SNAPSHOT)
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Snapshot)
         val snapshotJar = versionController.getOrDownloadLatestVersion()
         assertNotNull(snapshotJar, "SNAPSHOT JAR should not be null")
         println("SNAPSHOT: ${snapshotJar!!.name}")
@@ -281,10 +281,10 @@ class VersionControllerTest {
         for (mcVersion in availableVersions.sorted()) {
             println("\n--- Testing MC version: $mcVersion ---")
 
-            val versionController = VersionController(minecraftVersionOverride = mcVersion)
+            val versionController = LambdaVersionController(minecraftVersionOverride = mcVersion)
 
             // Test SNAPSHOT mode (more likely to have versions available)
-            ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.SNAPSHOT)
+            ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Snapshot)
             val jarFile = versionController.getOrDownloadLatestVersion()
 
             if (jarFile != null) {
@@ -326,10 +326,10 @@ class VersionControllerTest {
 
         println("Testing with Minecraft version: $mcVersion")
 
-        val versionController = VersionController(minecraftVersionOverride = mcVersion)
+        val versionController = LambdaVersionController(minecraftVersionOverride = mcVersion)
 
         // Set to STABLE mode - should fallback to snapshot if stable doesn't exist
-        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE, debug = true)
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Stable, debug = true)
 
         val jarFile = versionController.getOrDownloadLatestVersion()
 
@@ -352,10 +352,10 @@ class VersionControllerTest {
 
         println("Testing with non-existent Minecraft version: $nonExistentVersion")
 
-        val versionController = VersionController(minecraftVersionOverride = nonExistentVersion)
+        val versionController = LambdaVersionController(minecraftVersionOverride = nonExistentVersion)
 
         // Set to STABLE mode
-        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.STABLE, debug = true)
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Stable, debug = true)
 
         val jarFile = versionController.getOrDownloadLatestVersion()
 

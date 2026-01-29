@@ -23,37 +23,28 @@ class Cache(baseDir: File = File("lambda")) {
     }
 
     private fun clearOldVersions(currentFileName: String) {
-        // Extract base name without version (e.g., "mod-1.0.0.jar" -> "mod")
         val baseName = currentFileName.substringBeforeLast("-").substringBeforeLast(".")
 
         versionCacheDir.listFiles()?.forEach { file ->
             if (file.isFile && file.name.endsWith(".jar") && file.name != currentFileName) {
-                // Check if this file is an older version of the same mod
                 val fileBaseName = file.name.substringBeforeLast("-").substringBeforeLast(".")
                 if (fileBaseName == baseName) {
                     val deleted = file.delete()
-                    if (ConfigManager.config.debug) {
-                        if (deleted) {
-                            logger.info("Deleted old version: ${file.name}")
-                        } else {
-                            logger.warning("Failed to delete old version: ${file.name}")
-                        }
-                    }
+                    if (ConfigManager.config.debug)
+                        if (deleted) logger.info("Deleted old version: ${file.name}")
+                        else logger.warning("Failed to delete old version: ${file.name}")
                 }
             }
         }
     }
 
     fun cacheVersion(name: String, data: ByteArray) {
-        // Clear old versions of this specific mod before caching new one
         clearOldVersions(name)
 
         val cachedFile = File(versionCacheDir, name)
         cachedFile.writeBytes(data)
 
-        if (ConfigManager.config.debug) {
-            logger.info("Cached new version: $name")
-        }
+        if (ConfigManager.config.debug) logger.info("Cached new version: $name")
     }
 
 

@@ -19,46 +19,19 @@ abstract class BaseMavenVersionController(
 ) {
     protected val logger: Logger = Logger.getLogger("Lambda-Loader")
 
-    /**
-     * Override this to specify which release mode to use.
-     * By default, uses the client release mode for backwards compatibility.
-     */
-    protected open fun getReleaseMode(): ReleaseMode = ConfigManager.config.clientReleaseMode
-
-    /**
-     * The base Maven repository URL
-     */
     abstract val mavenUrl: String
-
-    /**
-     * URL to the releases maven-metadata.xml
-     */
-    abstract val releasesMetaUrl: URL
-
-    /**
-     * URL to the snapshots maven-metadata.xml
-     */
+    abstract val stableMetaUrl: URL
     abstract val snapshotMetaUrl: URL
-
-    /**
-     * The artifact group and name path (e.g., "com/lambda/lambda")
-     */
     abstract val artifactPath: String
-
-    /**
-     * The artifact name (e.g., "lambda")
-     */
     abstract val artifactName: String
 
-    /**
-     * Override this to provide version matching logic.
-     * Return null to accept all versions (no filtering).
-     */
+    protected open fun getReleaseMode(): ReleaseMode = ConfigManager.config.clientReleaseMode
+
     protected open fun getVersionToMatch(): String? = null
 
-    protected fun checkReleasesVersion(): String? {
+    protected fun checkStableVersion(): String? {
         return try {
-            val xml = releasesMetaUrl.readText()
+            val xml = stableMetaUrl.readText()
             parseLatestVersionForMinecraft(xml)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -82,7 +55,6 @@ abstract class BaseMavenVersionController(
             val builder = factory.newDocumentBuilder()
             val document = builder.parse(xml.byteInputStream())
 
-            // Get all versions
             val versionNodes = document.getElementsByTagName("version")
             val versions = mutableListOf<String>()
 
@@ -94,28 +66,20 @@ abstract class BaseMavenVersionController(
             val versionToMatch = getVersionToMatch()
 
             if (ConfigManager.config.debug) {
-                if (versionToMatch != null) {
-                    logger.info("Target version: $versionToMatch")
-                }
+                if (versionToMatch != null) logger.info("Target version: $versionToMatch")
                 logger.info("Available Maven versions: ${versions.joinToString(", ")}")
             }
 
             val matchingVersions = if (versionToMatch != null && versionMatchingEnabled) {
-                // Filter versions for the target version
                 versions.filter { version ->
-                    // Extract MC version from artifact version (after +, before - or end)
                     val mcVersionInArtifact = version.substringAfter("+").substringBefore("-")
 
-                    // Normalize both versions for comparison (remove extra dots)
                     val normalizedArtifactVersion = mcVersionInArtifact.replace(".", "")
                     val normalizedTargetVersion = versionToMatch.replace(".", "")
 
                     normalizedArtifactVersion == normalizedTargetVersion
                 }
-            } else {
-                // No filtering, use all versions
-                versions
-            }
+            } else versions
 
             if (matchingVersions.isEmpty()) {
                 if (ConfigManager.config.debug) {
@@ -126,7 +90,6 @@ abstract class BaseMavenVersionController(
                 return null
             }
 
-            // Get the latest matching version (last in the list)
             val latestVersion = matchingVersions.last()
             if (ConfigManager.config.debug) {
                 val versionMsg = versionToMatch?.let { "for version $it" } ?: ""
@@ -192,64 +155,58 @@ abstract class BaseMavenVersionController(
         return "$jarUrl.md5"
     }
 
-    protected fun getReleaseJarUrl(): String? {
-        val version = checkReleasesVersion() ?: return null
+    protected fun getStableJarUrl(): String? {
+        val version = checkStableVersion() ?: return null
         return "$mavenUrl/releases/$artifactPath/$version/$artifactName-$version.jar"
     }
 
-    protected fun getReleaseChecksumUrl(): String? {
-        val jarUrl = getReleaseJarUrl() ?: return null
+    protected fun getStableChecksumUrl(): String? {
+        val jarUrl = getStableJarUrl() ?: return null
         return "$jarUrl.md5"
     }
 
     protected fun getJarUrl(): String? {
         return when (getReleaseMode()) {
-            ReleaseMode.STABLE -> {
-                val releaseUrl = getReleaseJarUrl()
+            ReleaseMode.Stable -> {
+                val releaseUrl = getStableJarUrl()
                 if (releaseUrl == null) {
                     val versionMsg = getVersionToMatch()?.let { "for version $it" } ?: ""
                     logger.warning("No stable version found $versionMsg, falling back to snapshot")
                     getSnapshotJarUrl()
-                } else {
-                    releaseUrl
-                }
+                } else releaseUrl
             }
-            ReleaseMode.SNAPSHOT -> getSnapshotJarUrl()
+            ReleaseMode.Snapshot -> getSnapshotJarUrl()
         }
     }
 
     protected fun getChecksumUrl(): String? {
         return when (getReleaseMode()) {
-            ReleaseMode.STABLE -> {
-                val releaseChecksumUrl = getReleaseChecksumUrl()
+            ReleaseMode.Stable -> {
+                val releaseChecksumUrl = getStableChecksumUrl()
                 if (releaseChecksumUrl == null) {
                     val versionMsg = getVersionToMatch()?.let { "for version $it" } ?: ""
                     logger.warning("No stable version checksum found $versionMsg, falling back to snapshot")
                     getSnapshotChecksumUrl()
-                } else {
-                    releaseChecksumUrl
-                }
+                } else releaseChecksumUrl
             }
-            ReleaseMode.SNAPSHOT -> getSnapshotChecksumUrl()
+            ReleaseMode.Snapshot -> getSnapshotChecksumUrl()
         }
     }
 
     protected fun getCacheFileName(): String? {
         return when (getReleaseMode()) {
-            ReleaseMode.STABLE -> {
-                val version = checkReleasesVersion()
+            ReleaseMode.Stable -> {
+                val version = checkStableVersion()
                 if (version == null) {
                     val versionMsg = getVersionToMatch()?.let { "for version $it" } ?: ""
                     logger.warning("No stable cache filename found $versionMsg, falling back to snapshot")
                     val snapshotInfo = getLatestSnapshotInfo() ?: return null
                     val baseVersion = snapshotInfo.version.replace("-SNAPSHOT", "")
                     "$artifactName-$baseVersion-${snapshotInfo.timestamp}-${snapshotInfo.buildNumber}.jar"
-                } else {
-                    "$artifactName-$version.jar"
-                }
+                } else "$artifactName-$version.jar"
             }
 
-            ReleaseMode.SNAPSHOT -> {
+            ReleaseMode.Snapshot -> {
                 val snapshotInfo = getLatestSnapshotInfo() ?: return null
                 val baseVersion = snapshotInfo.version.replace("-SNAPSHOT", "")
                 "$artifactName-$baseVersion-${snapshotInfo.timestamp}-${snapshotInfo.buildNumber}.jar"
@@ -289,55 +246,38 @@ abstract class BaseMavenVersionController(
 
     protected fun ensureLatestVersionCached(): Boolean {
         return try {
-            // Check if already cached with valid checksum
             if (isLatestVersionCached()) {
-                if (ConfigManager.config.debug) {
-                    logger.info("Latest version is already cached with valid checksum")
-                }
+                if (ConfigManager.config.debug) logger.info("Latest version is already cached with valid checksum")
                 return true
             }
 
-            if (ConfigManager.config.debug) {
-                logger.info("Latest version not cached or checksum invalid, downloading...")
-            }
+            if (ConfigManager.config.debug) logger.info("Latest version not cached or checksum invalid, downloading...")
 
-            // Get the file name for caching
             val fileName = getCacheFileName() ?: return false
 
-            // Download the JAR
             val jarData = downloadJar() ?: run {
                 logger.severe("Failed to download JAR")
                 return false
             }
 
-            // Download the expected checksum
             val expectedChecksum = downloadChecksum() ?: run {
                 logger.severe("Failed to download checksum")
                 return false
             }
 
-            // Verify downloaded data matches checksum
             val actualChecksum = cache.checksumBytes(jarData)
             if (actualChecksum != expectedChecksum) {
                 logger.severe("Checksum mismatch! Expected: $expectedChecksum, Got: $actualChecksum")
                 return false
             }
 
-            // Cache the verified JAR
             cache.cacheVersion(fileName, jarData)
-            if (ConfigManager.config.debug) {
-                logger.info("Successfully cached version: $fileName")
-            }
+            if (ConfigManager.config.debug) logger.info("Successfully cached version: $fileName")
 
-            // Verify it was cached correctly
             val verified = cache.checkVersionChecksum(fileName, expectedChecksum)
-            if (ConfigManager.config.debug) {
-                if (verified) {
-                    logger.fine("Cache verification successful")
-                } else {
-                    logger.warning("Cache verification failed")
-                }
-            }
+            if (ConfigManager.config.debug)
+                if (verified) logger.fine("Cache verification successful")
+                else logger.warning("Cache verification failed")
             verified
         } catch (e: Exception) {
             logger.severe("Error ensuring latest version cached: ${e.message}")
@@ -354,10 +294,8 @@ abstract class BaseMavenVersionController(
      */
     fun getOrDownloadLatestVersion(): File? {
         return try {
-            // Ensure the latest version is cached
             if (!ensureLatestVersionCached()) {
-                // Check if both stable and snapshot versions are unavailable
-                val stableVersion = checkReleasesVersion()
+                val stableVersion = checkStableVersion()
                 val snapshotVersion = checkSnapshotVersion()
 
                 if (stableVersion == null && snapshotVersion == null) {
@@ -379,23 +317,19 @@ abstract class BaseMavenVersionController(
                 return null
             }
 
-            // Get the cached filename
             val fileName = getCacheFileName()
             if (fileName == null) {
                 logger.severe("Failed to get cache filename after successful caching")
                 return null
             }
 
-            // Get the cached version file
             val jarFile = cache.getCachedVersion(fileName)
             if (jarFile == null) {
                 logger.severe("JAR file does not exist after caching: $fileName")
                 exitProcess(1)
             }
 
-            if (ConfigManager.config.debug) {
-                logger.info("Latest version ready: ${jarFile.absolutePath}")
-            }
+            if (ConfigManager.config.debug) logger.info("Latest version ready: ${jarFile.absolutePath}")
             jarFile
         } catch (e: Exception) {
             logger.severe("Failed to get or download latest version: ${e.message}")

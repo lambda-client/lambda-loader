@@ -23,18 +23,14 @@ class LoaderUpdater(
      */
     private fun getCurrentLoaderJarPath(): File? {
         return try {
-            // Get the location of this class
             val codeSource = this::class.java.protectionDomain.codeSource
             if (codeSource != null) {
                 val location = codeSource.location
                 val path = location.toURI().path
                 val file = File(path)
 
-                // Verify it's a JAR file
                 if (file.exists() && file.name.endsWith(".jar")) {
-                    if (ConfigManager.config.debug) {
-                        logger.info("Current loader JAR: ${file.absolutePath}")
-                    }
+                    if (ConfigManager.config.debug) logger.info("Current loader JAR: ${file.absolutePath}")
                     return file
                 }
             }
@@ -47,9 +43,6 @@ class LoaderUpdater(
         }
     }
 
-    /**
-     * Checks if an update is available and returns the update information.
-     */
     data class UpdateInfo(
         val available: Boolean,
         val currentVersion: String?,
@@ -67,11 +60,8 @@ class LoaderUpdater(
             val latestVersion = loaderController.checkForUpdate()
 
             if (latestVersion != null) {
-                if (ConfigManager.config.debug) {
-                    logger.info("Update available: $currentVersion -> $latestVersion")
-                }
+                if (ConfigManager.config.debug) logger.info("Update available: $currentVersion -> $latestVersion")
 
-                // Download the update
                 val updateFile = loaderController.getOrDownloadLatestVersion()
 
                 return UpdateInfo(
@@ -81,9 +71,7 @@ class LoaderUpdater(
                     updateFile = updateFile
                 )
             } else {
-                if (ConfigManager.config.debug) {
-                    logger.info("Loader is up to date: $currentVersion")
-                }
+                if (ConfigManager.config.debug) logger.info("Loader is up to date: $currentVersion")
                 return UpdateInfo(
                     available = false,
                     currentVersion = currentVersion,
@@ -105,7 +93,7 @@ class LoaderUpdater(
 
     /**
      * Applies a loader update by replacing the current JAR with the new one.
-     * Returns true if update was applied successfully.
+     * Returns true if the update was applied successfully.
      */
     fun applyUpdate(updateInfo: UpdateInfo): Boolean {
         if (!updateInfo.available || updateInfo.updateFile == null) {
@@ -125,11 +113,8 @@ class LoaderUpdater(
             logger.info("Current JAR: ${currentJar.absolutePath}")
             logger.info("Update JAR: ${updateInfo.updateFile.absolutePath}")
 
-            // Create backup of current loader
             val backupFile = File(currentJar.parentFile, "${currentJar.name}.backup")
-            if (ConfigManager.config.debug) {
-                logger.info("Creating backup: ${backupFile.absolutePath}")
-            }
+            if (ConfigManager.config.debug) logger.info("Creating backup: ${backupFile.absolutePath}")
 
             Files.copy(
                 currentJar.toPath(),
@@ -137,10 +122,7 @@ class LoaderUpdater(
                 StandardCopyOption.REPLACE_EXISTING
             )
 
-            // Replace current JAR with update
-            if (ConfigManager.config.debug) {
-                logger.info("Replacing loader JAR...")
-            }
+            if (ConfigManager.config.debug) logger.info("Replacing loader JAR...")
 
             Files.copy(
                 updateInfo.updateFile.toPath(),
@@ -148,8 +130,9 @@ class LoaderUpdater(
                 StandardCopyOption.REPLACE_EXISTING
             )
 
+            backupFile.delete()
+
             logger.info("Loader update applied successfully!")
-            logger.info("Backup saved at: ${backupFile.absolutePath}")
             logger.info("═══════════════════════════════════════════════════════════")
 
             true
@@ -158,32 +141,6 @@ class LoaderUpdater(
             e.printStackTrace()
             false
         }
-    }
-
-    /**
-     * Check for updates and apply if available.
-     * If restart is true, will exit the process to allow the new loader to start.
-     */
-    fun checkAndApplyUpdate(restart: Boolean = false): Boolean {
-        val updateInfo = checkForUpdate()
-
-        if (!updateInfo.available) {
-            return false
-        }
-
-        val applied = applyUpdate(updateInfo)
-
-        if (applied && restart) {
-            logger.info("═══════════════════════════════════════════════════════════")
-            logger.info("Loader has been updated. Please restart Minecraft.")
-            logger.info("═══════════════════════════════════════════════════════════")
-            // Note: We can't actually restart Minecraft from here
-            // The user needs to restart manually or we need to exit
-            // Uncomment the line below if you want to force exit after update
-            // exitProcess(0)
-        }
-
-        return applied
     }
 
     /**
@@ -207,6 +164,8 @@ class LoaderUpdater(
                 currentJar.toPath(),
                 StandardCopyOption.REPLACE_EXISTING
             )
+
+            backupFile.delete()
 
             logger.info("Loader restored from backup successfully!")
             true
