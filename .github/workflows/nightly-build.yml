@@ -1,0 +1,46 @@
+name: Nightly Build
+
+on:
+  pull_request:
+    branches: [ master, main, develop ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Get short commit hash
+        id: vars
+        run: echo "COMMIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Set-Up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'oracle'
+          java-version: '21'
+          architecture: x64
+          cache: 'gradle'
+
+      - name: Read Gradle Properties
+        uses: BrycensRanch/read-properties-action@v1.0.4
+        id: all
+        with:
+          file: gradle.properties
+          all: true
+
+      - name: Publish snapshot to maven
+        id: upload-maven
+        run: ./gradlew publish -PmavenType=snapshots -PmavenUsername=${{ secrets.MAVEN_USER }} -PmavenPassword=${{ secrets.MAVEN_TOKEN }}
+
+      - name: Rename jar
+        run: mv build/libs/${{ steps.all.outputs.modId }}-${{ steps.all.outputs.modVersion }}.jar build/libs/${{ steps.all.outputs.modId }}-${{ steps.all.outputs.modVersion }}-${{ env.COMMIT_HASH }}.jar
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-loader-nightly
+          path: build/libs/${{ steps.all.outputs.modId }}-${{ steps.all.outputs.modVersion }}-${{ env.COMMIT_HASH }}.jar
+          if-no-files-found: error

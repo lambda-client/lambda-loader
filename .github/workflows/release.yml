@@ -1,0 +1,47 @@
+name: Release Lambda Loader
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  publish:
+    name: Build and release lambda-loader
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set-Up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'oracle'
+          java-version: '21'
+          architecture: x64
+          cache: 'gradle'
+
+      - name: Read Gradle Properties
+        uses: BrycensRanch/read-properties-action@v1.0.4
+        id: all
+        with:
+          file: gradle.properties
+          all: true
+
+      - name: Publish snapshot to maven
+        id: upload-maven
+        run: ./gradlew publish -PmavenType=release -PmavenUsername=${{ secrets.MAVEN_USER }} -PmavenPassword=${{ secrets.MAVEN_TOKEN }}
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2.0.8
+        with:
+          name: Lambda Loader ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          append_body: true
+          make_latest: "true"
+          files: build/libs/${{ steps.all.outputs.modId }}-${{ steps.all.outputs.modVersion }}.jar
