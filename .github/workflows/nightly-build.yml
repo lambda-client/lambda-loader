@@ -3,6 +3,7 @@ name: Nightly Build
 on:
   pull_request:
     branches: [ master, main, develop ]
+  workflow_dispatch:
 
 jobs:
   build:
