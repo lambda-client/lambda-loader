@@ -16,10 +16,10 @@ class LoaderVersionController(
 ) : BaseMavenVersionController(cache, versionMatchingEnabled = false) {
 
     override val mavenUrl: String = loaderMavenUrl
-    override val stableMetaUrl: URL = URI("$mavenUrl/releases/com/lambda/loader/maven-metadata.xml").toURL()
-    override val snapshotMetaUrl: URL = URI("$mavenUrl/snapshots/com/lambda/loader/maven-metadata.xml").toURL()
-    override val artifactPath: String = "com/lambda/loader"
-    override val artifactName: String = "loader"
+    override val stableMetaUrl: URL = URI("$mavenUrl/releases/com/lambda/lambda-loader/maven-metadata.xml").toURL()
+    override val snapshotMetaUrl: URL = URI("$mavenUrl/snapshots/com/lambda/lambda-loader/maven-metadata.xml").toURL()
+    override val artifactPath: String = "com/lambda/lambda-loader"
+    override val artifactName: String = "lambda-loader"
 
     /**
      * Loader doesn't need version matching - we always want the latest version

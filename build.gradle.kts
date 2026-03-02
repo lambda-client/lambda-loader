@@ -25,12 +25,12 @@ base.archivesName = modId
 
 dependencies {
     // To change the versions see the gradle.properties file
-    minecraft("com.mojang:minecraft:${project.property("minecraftVersion")}")
-    mappings("net.fabricmc:yarn:${project.property("yarnMappings")}:v2")
+    minecraft("com.mojang:minecraft:$minecraftVersion")
+    mappings("net.fabricmc:yarn:$yarnMappings:v2")
 
-    modImplementation("net.fabricmc:fabric-loader:${project.property("fabricLoaderVersion")}")
-    modImplementation("net.fabricmc:fabric-language-kotlin:${project.property("kotlinLoaderVersion")}")
-    modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabricApiVersion")}")
+    modImplementation("net.fabricmc:fabric-loader:$fabricLoaderVersion")
+    modImplementation("net.fabricmc:fabric-language-kotlin:$kotlinFabricVersion")
+    modImplementation("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
