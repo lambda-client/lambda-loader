@@ -6,7 +6,6 @@ import com.google.gson.JsonObject
 import java.io.File
 
 object ConfigManager {
-
     private val configFile: File = File("lambda/config", "modules.json")
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
 

@@ -8,6 +8,7 @@ import net.minecraft.client.MinecraftClient
 import org.spongepowered.asm.mixin.Mixins
 import java.util.logging.ConsoleHandler
 import java.util.logging.Logger
+import kotlin.system.exitProcess
 
 class LoaderInitializer : PreLaunchEntrypoint {
     val logger: Logger = Logger.getLogger("Lambda-Loader").also {
@@ -29,21 +30,21 @@ class LoaderInitializer : PreLaunchEntrypoint {
             val updateInfo = updater.checkForUpdate()
 
             if (updateInfo.available) {
-                logger.info("═══════════════════════════════════════════════════════════")
+                logger.info("============================================================")
                 logger.info("Lambda-Loader update available!")
                 logger.info("Current version: ${updateInfo.currentVersion ?: "unknown"}")
                 logger.info("Latest version: ${updateInfo.latestVersion}")
-                logger.info("═══════════════════════════════════════════════════════════")
+                logger.info("============================================================")
 
                 val applied = updater.applyUpdate(updateInfo)
 
                 if (applied) {
-                    logger.info("═══════════════════════════════════════════════════════════")
+                    logger.info("============================================================")
                     logger.info("Lambda-Loader has been updated successfully!")
                     logger.info("Please restart Minecraft to use the new version.")
-                    logger.info("═══════════════════════════════════════════════════════════")
+                    logger.info("============================================================")
 
-                    MinecraftClient.getInstance().stop()
+                    exitProcess(0)
                 } else {
                     logger.warning("Failed to apply loader update, continuing with current version")
                     updater.restoreFromBackup()

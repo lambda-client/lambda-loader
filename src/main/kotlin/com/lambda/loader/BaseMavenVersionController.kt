@@ -300,8 +300,8 @@ abstract class BaseMavenVersionController(
 
                 if (stableVersion == null && snapshotVersion == null) {
                     val versionMsg = getVersionToMatch()?.let { "for version $it" } ?: ""
-                    logger.severe("═══════════════════════════════════════════════════════════")
-                    logger.severe("FATAL ERROR: No ${artifactName} version found!")
+                    logger.severe("============================================================")
+                    logger.severe("FATAL ERROR: No $artifactName version found!")
                     if (versionMsg.isNotEmpty()) {
                         logger.severe("Target version: $versionMsg")
                     }
@@ -309,8 +309,8 @@ abstract class BaseMavenVersionController(
                     logger.severe("Please check:")
                     logger.severe("  1. Your internet connection")
                     logger.severe("  2. Maven repository availability at: $mavenUrl")
-                    logger.severe("  3. If ${artifactName} supports the required version")
-                    logger.severe("═══════════════════════════════════════════════════════════")
+                    logger.severe("  3. If $artifactName supports the required version")
+                    logger.severe("============================================================")
                 } else {
                     logger.severe("Failed to ensure latest version is cached")
                 }

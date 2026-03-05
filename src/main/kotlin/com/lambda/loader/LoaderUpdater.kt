@@ -6,7 +6,6 @@ import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.logging.Logger
-import kotlin.system.exitProcess
 
 /**
  * Handles automatic updates for the Lambda-Loader itself.
@@ -108,7 +107,7 @@ class LoaderUpdater(
         }
 
         return try {
-            logger.info("═══════════════════════════════════════════════════════════")
+            logger.info("============================================================")
             logger.info("Applying loader update: ${updateInfo.currentVersion} -> ${updateInfo.latestVersion}")
             logger.info("Current JAR: ${currentJar.absolutePath}")
             logger.info("Update JAR: ${updateInfo.updateFile.absolutePath}")
@@ -124,16 +123,12 @@ class LoaderUpdater(
 
             if (ConfigManager.config.debug) logger.info("Replacing loader JAR...")
 
-            Files.copy(
-                updateInfo.updateFile.toPath(),
-                currentJar.toPath(),
-                StandardCopyOption.REPLACE_EXISTING
-            )
+            currentJar.writeBytes(updateInfo.updateFile.readBytes())
 
             backupFile.delete()
 
             logger.info("Loader update applied successfully!")
-            logger.info("═══════════════════════════════════════════════════════════")
+            logger.info("============================================================")
 
             true
         } catch (e: IOException) {
@@ -159,12 +154,7 @@ class LoaderUpdater(
         return try {
             logger.info("Restoring loader from backup: ${backupFile.absolutePath}")
 
-            Files.copy(
-                backupFile.toPath(),
-                currentJar.toPath(),
-                StandardCopyOption.REPLACE_EXISTING
-            )
-
+            currentJar.writeBytes(backupFile.readBytes())
             backupFile.delete()
 
             logger.info("Loader restored from backup successfully!")
