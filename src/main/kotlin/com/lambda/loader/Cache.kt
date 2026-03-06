@@ -17,7 +17,7 @@ class Cache(baseDir: File = File("lambda")) {
     }
 
 
-    private fun checkSumBytes(bytes: ByteArray): String {
+    fun checkSumBytes(bytes: ByteArray): String {
         val digest = md.digest(bytes)
         return digest.joinToString("") { "%02x".format(it) }
     }
@@ -62,9 +62,4 @@ class Cache(baseDir: File = File("lambda")) {
         val cachedData = getCachedVersionBytes(name) ?: return false
         return checkSumBytes(cachedData) == checksum.lowercase()
     }
-
-    fun checksumBytes(bytes: ByteArray): String {
-        return checkSumBytes(bytes)
-    }
-
 }

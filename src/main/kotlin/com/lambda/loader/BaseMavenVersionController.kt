@@ -84,7 +84,7 @@ abstract class BaseMavenVersionController(
             if (matchingVersions.isEmpty()) {
                 if (ConfigManager.config.debug) {
                     val versionMsg = versionToMatch?.let { "for version $it" } ?: ""
-                    logger.warning("No ${artifactName} versions found $versionMsg")
+                    logger.warning("No $artifactName versions found $versionMsg")
                     logger.warning("Available versions: ${versions.joinToString(", ")}")
                 }
                 return null
@@ -93,7 +93,7 @@ abstract class BaseMavenVersionController(
             val latestVersion = matchingVersions.last()
             if (ConfigManager.config.debug) {
                 val versionMsg = versionToMatch?.let { "for version $it" } ?: ""
-                logger.info("Found latest ${artifactName} version $versionMsg: $latestVersion")
+                logger.info("Found latest $artifactName version $versionMsg: $latestVersion")
             }
             latestVersion
         } catch (e: Exception) {
@@ -265,7 +265,7 @@ abstract class BaseMavenVersionController(
                 return false
             }
 
-            val actualChecksum = cache.checksumBytes(jarData)
+            val actualChecksum = cache.checkSumBytes(jarData)
             if (actualChecksum != expectedChecksum) {
                 logger.severe("Checksum mismatch! Expected: $expectedChecksum, Got: $actualChecksum")
                 return false

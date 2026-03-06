@@ -64,7 +64,7 @@ class LoaderVersionController(
             val latestVersion = when (getReleaseMode()) {
                 ReleaseMode.Stable -> checkStableVersion()
                 ReleaseMode.Snapshot -> checkSnapshotVersion()
-            }
+            }?.substringBefore("+")
 
             if (latestVersion == null) {
                 logger.warning("Could not fetch latest loader version")
