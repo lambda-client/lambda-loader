@@ -58,7 +58,7 @@ abstract class BaseMavenVersionController(
             val versionNodes = document.getElementsByTagName("version")
             val versions = mutableListOf<String>()
 
-            for (i in 0 until versionNodes.length) {
+            (0 until versionNodes.length).forEach { i ->
                 val version = versionNodes.item(i).textContent
                 versions.add(version)
             }

@@ -16,7 +16,6 @@ class Cache(baseDir: File = File("lambda")) {
         if (!versionCacheDir.exists()) versionCacheDir.mkdirs()
     }
 
-
     fun checkSumBytes(bytes: ByteArray): String {
         val digest = md.digest(bytes)
         return digest.joinToString("") { "%02x".format(it) }
@@ -26,14 +25,15 @@ class Cache(baseDir: File = File("lambda")) {
         val baseName = currentFileName.substringBeforeLast("-").substringBeforeLast(".")
 
         versionCacheDir.listFiles()?.forEach { file ->
-            if (file.isFile && file.name.endsWith(".jar") && file.name != currentFileName) {
-                val fileBaseName = file.name.substringBeforeLast("-").substringBeforeLast(".")
-                if (fileBaseName == baseName) {
-                    val deleted = file.delete()
-                    if (ConfigManager.config.debug)
-                        if (deleted) logger.info("Deleted old version: ${file.name}")
-                        else logger.warning("Failed to delete old version: ${file.name}")
-                }
+            if (!file.isFile || !file.name.endsWith(".jar") || file.name == currentFileName) return@forEach
+
+            val fileBaseName = file.name.substringBeforeLast("-").substringBeforeLast(".")
+            if (fileBaseName != baseName) return@forEach
+
+            val deleted = file.delete()
+            if (ConfigManager.config.debug) {
+                if (deleted) logger.info("Deleted old version: ${file.name}")
+                else logger.warning("Failed to delete old version: ${file.name}")
             }
         }
     }

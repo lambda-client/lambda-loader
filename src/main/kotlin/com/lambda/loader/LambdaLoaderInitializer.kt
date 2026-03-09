@@ -75,7 +75,7 @@ class LoaderInitializer : PreLaunchEntrypoint {
             FabricUtil.injectAccessWidener(accessWidenerPath)
         }
 
-        for (mixinFile in FabricUtil.getMixinFileNames(latestVersion)) {
+        FabricUtil.getMixinFileNames(latestVersion).forEach { mixinFile ->
             Mixins.addConfiguration(mixinFile)
         }
 

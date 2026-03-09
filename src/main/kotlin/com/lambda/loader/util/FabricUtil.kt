@@ -20,6 +20,10 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.logging.Logger
 import java.util.zip.ZipFile
+import kotlin.io.path.copyTo
+import kotlin.io.path.exists
+import kotlin.io.path.isRegularFile
+import kotlin.io.path.walk
 
 object FabricUtil {
     private val logger: Logger = Logger.getLogger("Lambda-Loader")
@@ -72,25 +76,21 @@ object FabricUtil {
             FileSystems.newFileSystem(jarUri, mapOf<String, Any>()).use { fs ->
                 val jarsDir = fs.getPath("META-INF/jars")
 
-                if (Files.exists(jarsDir)) {
-                    Files.walk(jarsDir).use { stream ->
-                        stream.filter { path ->
-                            Files.isRegularFile(path) && path.toString().endsWith(".jar")
-                        }.forEach { nestedJarPath ->
-                            if (ConfigManager.config.debug) logger.info("Found nested JAR: $nestedJarPath")
+                if (!jarsDir.exists()) return@use
 
-                            val targetPath = tempDir.resolve(nestedJarPath.fileName.toString())
-                            Files.copy(
-                                nestedJarPath,
-                                targetPath,
-                                StandardCopyOption.REPLACE_EXISTING
-                            )
+                jarsDir.walk().filter { path ->
+                    path.isRegularFile() && path.toString().endsWith(".jar")
+                }.forEach { nestedJarPath ->
+                    if (ConfigManager.config.debug) logger.info("Found nested JAR: $nestedJarPath")
 
-                            addToClassPath(targetPath)
-                            nestedJarPaths.add(targetPath)
+                    val targetPath = tempDir.resolve(nestedJarPath.fileName.toString())
+                    nestedJarPath.copyTo(targetPath, StandardCopyOption.REPLACE_EXISTING)
 
-                            if (ConfigManager.config.debug) logger.info("Extracted and added nested JAR to classpath: ${nestedJarPath.fileName}")
-                        }
+                    addToClassPath(targetPath)
+                    nestedJarPaths.add(targetPath)
+
+                    if (ConfigManager.config.debug) {
+                        logger.info("Extracted and added nested JAR to classpath: ${nestedJarPath.fileName}")
                     }
                 }
             }
@@ -130,7 +130,7 @@ object FabricUtil {
 
                 // DependencyOverrides takes a Path parameter - use empty path since it isn't used
                 val depOverrides = DependencyOverrides(Path.of(""))
-                val metadata = parseMetadataMethod.invoke(
+                val metadata = parseMetadataMethod(
                     null, // static method
                     zip.getInputStream(entry),
                     jarFile.name,
@@ -153,92 +153,86 @@ object FabricUtil {
     /**
      * Creates a mod candidate with proper JAR paths, simulating how Fabric Loader does it
      */
-    private fun createModCandidate(metadata: LoaderModMetadata, jarFile: File): Any? {
-        return try {
-            val modCandidateClass = Class.forName("net.fabricmc.loader.impl.discovery.ModCandidateImpl")
+    private fun createModCandidate(metadata: LoaderModMetadata, jarFile: File) = try {
+        val modCandidateClass = Class.forName("net.fabricmc.loader.impl.discovery.ModCandidateImpl")
 
-            val createPlainMethod = modCandidateClass.getDeclaredMethod(
-                "createPlain",
-                List::class.java,
-                LoaderModMetadata::class.java,
-                Boolean::class.javaPrimitiveType,
-                Collection::class.java
-            )
-            createPlainMethod.isAccessible = true
+        val createPlainMethod = modCandidateClass.getDeclaredMethod(
+            "createPlain",
+            List::class.java,
+            LoaderModMetadata::class.java,
+            Boolean::class.javaPrimitiveType,
+            Collection::class.java
+        )
+        createPlainMethod.isAccessible = true
 
-            val candidate = createPlainMethod.invoke(
-                null, // static method
-                listOf(jarFile.toPath()), // provide the JAR file path
-                metadata,
-                false, // requiresRemap - already in production format
-                emptyList<Any>() // nested mods
-            )
+        val candidate = createPlainMethod(
+            null, // static method
+            listOf(jarFile.toPath()), // provide the JAR file path
+            metadata,
+            false, // requiresRemap - already in production format
+            emptyList<Any>() // nested mods
+        )
 
-            if (ConfigManager.config.debug) logger.info("Successfully created mod candidate for ${metadata.id} with JAR path: ${jarFile.absolutePath}")
-            candidate
-        } catch (e: Exception) {
-            logger.severe("Failed to create mod candidate: ${e.message}")
-            e.printStackTrace()
-            null
-        }
+        if (ConfigManager.config.debug) logger.info("Successfully created mod candidate for ${metadata.id} with JAR path: ${jarFile.absolutePath}")
+        candidate
+    } catch (e: Exception) {
+        logger.severe("Failed to create mod candidate: ${e.message}")
+        e.printStackTrace()
+        null
     }
 
     /**
      * Converts a mod candidate to a mod container
      */
-    private fun candidateToContainer(candidate: Any): Any? {
-        return try {
-            val modContainerClass = Class.forName("net.fabricmc.loader.impl.ModContainerImpl")
-            val modCandidateClass = Class.forName("net.fabricmc.loader.impl.discovery.ModCandidateImpl")
+    private fun candidateToContainer(candidate: Any) = try {
+        val modContainerClass = Class.forName("net.fabricmc.loader.impl.ModContainerImpl")
+        val modCandidateClass = Class.forName("net.fabricmc.loader.impl.discovery.ModCandidateImpl")
 
-            val constructor = modContainerClass.getDeclaredConstructor(modCandidateClass)
-            constructor.isAccessible = true
+        val constructor = modContainerClass.getDeclaredConstructor(modCandidateClass)
+        constructor.isAccessible = true
 
-            val container = constructor.newInstance(candidate)
-            if (ConfigManager.config.debug) logger.info("Successfully converted candidate to mod container")
-            container
-        } catch (e: Exception) {
-            logger.severe("Failed to convert candidate to container: ${e.message}")
-            e.printStackTrace()
-            null
-        }
+        val container = constructor.newInstance(candidate)
+        if (ConfigManager.config.debug) logger.info("Successfully converted candidate to mod container")
+        container
+    } catch (e: Exception) {
+        logger.severe("Failed to convert candidate to container: ${e.message}")
+        e.printStackTrace()
+        null
     }
 
     /**
      * Adds a mod container to the Fabric Loader's mod list
      */
-    private fun addModContainer(container: Any): Boolean {
-        return try {
-            val loader = FabricLoaderImpl.INSTANCE
+    private fun addModContainer(container: Any) = try {
+        val loader = FabricLoaderImpl.INSTANCE
 
-            val loaderClass = loader::class.java
-            val modsField = loaderClass.getDeclaredField("mods")
-            modsField.isAccessible = true
+        val loaderClass = loader::class.java
+        val modsField = loaderClass.getDeclaredField("mods")
+        modsField.isAccessible = true
 
-            @Suppress("UNCHECKED_CAST")
-            val modsList = modsField.get(loader) as MutableList<Any>
-            modsList.add(container)
+        @Suppress("UNCHECKED_CAST")
+        val modsList = modsField.get(loader) as MutableList<Any>
+        modsList.add(container)
 
-            val modMapField = loaderClass.getDeclaredField("modMap")
-            modMapField.isAccessible = true
+        val modMapField = loaderClass.getDeclaredField("modMap")
+        modMapField.isAccessible = true
 
-            @Suppress("UNCHECKED_CAST")
-            val modMap = modMapField.get(loader) as MutableMap<String, Any>
-            val getMetadataMethod = container::class.java.getDeclaredMethod("getMetadata")
+        @Suppress("UNCHECKED_CAST")
+        val modMap = modMapField.get(loader) as MutableMap<String, Any>
+        val getMetadataMethod = container::class.java.getDeclaredMethod("getMetadata")
 
-            getMetadataMethod.isAccessible = true
-            val metadata = getMetadataMethod.invoke(container) as LoaderModMetadata
-            val modId = metadata.id
+        getMetadataMethod.isAccessible = true
+        val metadata = getMetadataMethod.invoke(container) as LoaderModMetadata
+        val modId = metadata.id
 
-            modMap[modId] = container
+        modMap[modId] = container
 
-            if (ConfigManager.config.debug) logger.info("Successfully added mod container for $modId to Fabric Loader")
-            true
-        } catch (e: Exception) {
-            logger.severe("Failed to add mod container to Fabric Loader: ${e.message}")
-            e.printStackTrace()
-            false
-        }
+        if (ConfigManager.config.debug) logger.info("Successfully added mod container for $modId to Fabric Loader")
+        true
+    } catch (e: Exception) {
+        logger.severe("Failed to add mod container to Fabric Loader: ${e.message}")
+        e.printStackTrace()
+        false
     }
 
     /**

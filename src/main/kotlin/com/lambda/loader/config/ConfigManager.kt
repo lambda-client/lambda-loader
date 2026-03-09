@@ -11,30 +11,28 @@ object ConfigManager {
 
     var config: Config = loadConfig()
 
-    private fun loadConfig(): Config {
-        return if (configFile.exists()) {
-            try {
-                val json = configFile.readText()
-                val rootObject = gson.fromJson(json, JsonObject::class.java)
+    private fun loadConfig() = if (configFile.exists()) {
+        try {
+            val json = configFile.readText()
+            val rootObject = gson.fromJson(json, JsonObject::class.java)
 
-                val autoUpdater = rootObject.getAsJsonObject("AutoUpdater")
+            val autoUpdater = rootObject.getAsJsonObject("AutoUpdater")
 
-                if (autoUpdater != null) {
-                    val debug = autoUpdater.get("Debug")?.asBoolean ?: false
-                    val clientBranch = autoUpdater.get("Client Branch")?.asString ?: "Snapshot"
-                    val loaderBranch = autoUpdater.get("Loader Branch")?.asString ?: "Stable"
+            if (autoUpdater != null) {
+                val debug = autoUpdater.get("Debug")?.asBoolean ?: false
+                val clientBranch = autoUpdater.get("Client Branch")?.asString ?: "Snapshot"
+                val loaderBranch = autoUpdater.get("Loader Branch")?.asString ?: "Stable"
 
-                    Config(
-                        clientReleaseMode = branchToReleaseMode(clientBranch),
-                        loaderReleaseMode = branchToReleaseMode(loaderBranch),
-                        debug = debug
-                    )
-                } else Config()
-            } catch (_: Exception) {
-                Config()
-            }
-        } else Config()
-    }
+                Config(
+                    clientReleaseMode = branchToReleaseMode(clientBranch),
+                    loaderReleaseMode = branchToReleaseMode(loaderBranch),
+                    debug = debug
+                )
+            } else Config()
+        } catch (_: Exception) {
+            Config()
+        }
+    } else Config()
 
     private fun branchToReleaseMode(branch: String): ReleaseMode {
         return when (branch.uppercase()) {
