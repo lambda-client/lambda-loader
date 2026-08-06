@@ -21,7 +21,7 @@ abstract class BaseMavenVersionController(
 
     abstract val mavenUrl: String
     abstract val stableMetaUrl: URL
-    abstract val snapshotMetaUrl: URL
+    abstract val devMetaUrl: URL
     abstract val artifactPath: String
     abstract val artifactName: String
 
@@ -39,12 +39,12 @@ abstract class BaseMavenVersionController(
         }
     }
 
-    protected fun checkSnapshotVersion(): String? {
+    protected fun checkDevVersion(): String? {
         return try {
-            val xml = snapshotMetaUrl.readText()
+            val xml = devMetaUrl.readText()
             parseLatestVersionForMinecraft(xml)
         } catch (e: Exception) {
-            e.printStackTrace()
+            if (ConfigManager.config.debug) e.printStackTrace()
             null
         }
     }
@@ -102,62 +102,19 @@ abstract class BaseMavenVersionController(
         }
     }
 
-    data class SnapshotInfo(
-        val version: String,
-        val timestamp: String,
-        val buildNumber: String
-    )
-
-    protected fun getLatestSnapshotInfo(): SnapshotInfo? {
-        return try {
-            val version = checkSnapshotVersion() ?: return null
-            val snapshotMetaUrl = URI("$mavenUrl/snapshots/$artifactPath/$version/maven-metadata.xml").toURL()
-            val xml = snapshotMetaUrl.readText()
-            parseSnapshotInfo(xml, version)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
+    protected fun getDevJarUrl(): String? {
+        val version = checkDevVersion() ?: return null
+        return "$mavenUrl/dev/$artifactPath/$version/$artifactName-$version.jar"
     }
 
-    protected fun parseSnapshotInfo(xml: String, version: String): SnapshotInfo? {
-        return try {
-            val factory = DocumentBuilderFactory.newInstance()
-            val builder = factory.newDocumentBuilder()
-            val document = builder.parse(xml.byteInputStream())
-
-            val timestampNodes = document.getElementsByTagName("timestamp")
-            val buildNumberNodes = document.getElementsByTagName("buildNumber")
-
-            if (timestampNodes.length > 0 && buildNumberNodes.length > 0) {
-                val timestamp = timestampNodes.item(0).textContent
-                val buildNumber = buildNumberNodes.item(0).textContent
-                SnapshotInfo(version, timestamp, buildNumber)
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
-
-    protected fun getSnapshotJarUrl(): String? {
-        val snapshotInfo = getLatestSnapshotInfo() ?: return null
-        val baseVersion = snapshotInfo.version.replace("-SNAPSHOT", "")
-        val timestamp = snapshotInfo.timestamp
-        val buildNumber = snapshotInfo.buildNumber
-        return "$mavenUrl/snapshots/$artifactPath/${snapshotInfo.version}/$artifactName-$baseVersion-$timestamp-$buildNumber.jar"
-    }
-
-    protected fun getSnapshotChecksumUrl(): String? {
-        val jarUrl = getSnapshotJarUrl() ?: return null
+    protected fun getDevChecksumUrl(): String? {
+        val jarUrl = getDevJarUrl() ?: return null
         return "$jarUrl.md5"
     }
 
     protected fun getStableJarUrl(): String? {
         val version = checkStableVersion() ?: return null
-        return "$mavenUrl/releases/$artifactPath/$version/$artifactName-$version.jar"
+        return "$mavenUrl/stable/$artifactPath/$version/$artifactName-$version.jar"
     }
 
     protected fun getStableChecksumUrl(): String? {
@@ -168,50 +125,44 @@ abstract class BaseMavenVersionController(
     protected fun getJarUrl(): String? {
         return when (getReleaseMode()) {
             ReleaseMode.Stable -> {
-                val releaseUrl = getStableJarUrl()
-                if (releaseUrl == null) {
+                val stableUrl = getStableJarUrl()
+                if (stableUrl == null) {
                     val versionMsg = getVersionToMatch()?.let { "for version $it" } ?: ""
-                    logger.warning("No stable version found $versionMsg, falling back to snapshot")
-                    getSnapshotJarUrl()
-                } else releaseUrl
+                    logger.warning("No stable version found $versionMsg, falling back to dev")
+                    getDevJarUrl()
+                } else stableUrl
             }
-            ReleaseMode.Snapshot -> getSnapshotJarUrl()
+            ReleaseMode.Dev -> getDevJarUrl()
         }
     }
 
     protected fun getChecksumUrl(): String? {
         return when (getReleaseMode()) {
             ReleaseMode.Stable -> {
-                val releaseChecksumUrl = getStableChecksumUrl()
-                if (releaseChecksumUrl == null) {
+                val stableChecksumUrl = getStableChecksumUrl()
+                if (stableChecksumUrl == null) {
                     val versionMsg = getVersionToMatch()?.let { "for version $it" } ?: ""
-                    logger.warning("No stable version checksum found $versionMsg, falling back to snapshot")
-                    getSnapshotChecksumUrl()
-                } else releaseChecksumUrl
+                    logger.warning("No stable version checksum found $versionMsg, falling back to dev")
+                    getDevChecksumUrl()
+                } else stableChecksumUrl
             }
-            ReleaseMode.Snapshot -> getSnapshotChecksumUrl()
+            ReleaseMode.Dev -> getDevChecksumUrl()
         }
     }
 
     protected fun getCacheFileName(): String? {
-        return when (getReleaseMode()) {
+        val version = when (getReleaseMode()) {
             ReleaseMode.Stable -> {
-                val version = checkStableVersion()
-                if (version == null) {
+                val stableVersion = checkStableVersion()
+                if (stableVersion == null) {
                     val versionMsg = getVersionToMatch()?.let { "for version $it" } ?: ""
-                    logger.warning("No stable cache filename found $versionMsg, falling back to snapshot")
-                    val snapshotInfo = getLatestSnapshotInfo() ?: return null
-                    val baseVersion = snapshotInfo.version.replace("-SNAPSHOT", "")
-                    "$artifactName-$baseVersion-${snapshotInfo.timestamp}-${snapshotInfo.buildNumber}.jar"
-                } else "$artifactName-$version.jar"
+                    logger.warning("No stable cache filename found $versionMsg, falling back to dev")
+                    checkDevVersion() ?: return null
+                } else stableVersion
             }
-
-            ReleaseMode.Snapshot -> {
-                val snapshotInfo = getLatestSnapshotInfo() ?: return null
-                val baseVersion = snapshotInfo.version.replace("-SNAPSHOT", "")
-                "$artifactName-$baseVersion-${snapshotInfo.timestamp}-${snapshotInfo.buildNumber}.jar"
-            }
+            ReleaseMode.Dev -> checkDevVersion() ?: return null
         }
+        return "$artifactName-$version.jar"
     }
 
     protected fun downloadChecksum(): String? {
@@ -296,16 +247,16 @@ abstract class BaseMavenVersionController(
         return try {
             if (!ensureLatestVersionCached()) {
                 val stableVersion = checkStableVersion()
-                val snapshotVersion = checkSnapshotVersion()
+                val devVersion = checkDevVersion()
 
-                if (stableVersion == null && snapshotVersion == null) {
+                if (stableVersion == null && devVersion == null) {
                     val versionMsg = getVersionToMatch()?.let { "for version $it" } ?: ""
                     logger.severe("============================================================")
                     logger.severe("FATAL ERROR: No $artifactName version found!")
                     if (versionMsg.isNotEmpty()) {
                         logger.severe("Target version: $versionMsg")
                     }
-                    logger.severe("Neither STABLE nor SNAPSHOT versions are available.")
+                    logger.severe("Neither stable nor dev versions are available.")
                     logger.severe("Please check:")
                     logger.severe("  1. Your internet connection")
                     logger.severe("  2. Maven repository availability at: $mavenUrl")

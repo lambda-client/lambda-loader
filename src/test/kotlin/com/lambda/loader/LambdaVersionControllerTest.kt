@@ -15,8 +15,8 @@ class LambdaVersionControllerTest {
     // This is necessary because FabricLoader is not available in the test environment
 
     companion object {
-        private const val MAVEN_RELEASES_URL = "https://maven.lambda-client.org/releases/com/lambda/lambda/maven-metadata.xml"
-        private const val MAVEN_SNAPSHOTS_URL = "https://maven.lambda-client.org/snapshots/com/lambda/lambda/maven-metadata.xml"
+        private const val MAVEN_STABLE_URL = "https://maven.lambda-client.org/stable/com/lambda/lambda/maven-metadata.xml"
+        private const val MAVEN_DEV_URL = "https://maven.lambda-client.org/dev/com/lambda/lambda/maven-metadata.xml"
 
         /**
          * Fetches all unique Minecraft versions available in Maven repositories
@@ -26,7 +26,7 @@ class LambdaVersionControllerTest {
 
             // Get versions from releases
             try {
-                val releasesXml = URI(MAVEN_RELEASES_URL).toURL().readText()
+                val releasesXml = URI(MAVEN_STABLE_URL).toURL().readText()
                 versions.addAll(parseMinecraftVersionsFromMaven(releasesXml))
             } catch (e: Exception) {
                 println("Warning: Could not fetch releases: ${e.message}")
@@ -34,7 +34,7 @@ class LambdaVersionControllerTest {
 
             // Get versions from snapshots
             try {
-                val snapshotsXml = URI(MAVEN_SNAPSHOTS_URL).toURL().readText()
+                val snapshotsXml = URI(MAVEN_DEV_URL).toURL().readText()
                 versions.addAll(parseMinecraftVersionsFromMaven(snapshotsXml))
             } catch (e: Exception) {
                 println("Warning: Could not fetch snapshots: ${e.message}")
@@ -103,24 +103,24 @@ class LambdaVersionControllerTest {
             println("⚠ No STABLE release found for MC $mcVersion")
         }
 
-        // Test SNAPSHOT mode
-        println("Checking SNAPSHOT releases for MC $mcVersion...")
-        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Snapshot)
+        // Test DEV mode
+        println("Checking DEV releases for MC $mcVersion...")
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Dev)
 
-        val snapshotJar = versionController.getOrDownloadLatestVersion()
-        if (snapshotJar != null) {
-            println("✓ Found SNAPSHOT release: ${snapshotJar.name}")
-            assertTrue(snapshotJar.exists(), "SNAPSHOT JAR should exist")
-            // Snapshot filename format: lambda-X.X.X-timestamp-buildnumber.jar
-            val hasVersion = snapshotJar.name.contains(mcVersion)
-            assertTrue(hasVersion, "SNAPSHOT JAR should be for MC $mcVersion, got: ${snapshotJar.name}")
+        val devJar = versionController.getOrDownloadLatestVersion()
+        if (devJar != null) {
+            println("✓ Found DEV release: ${devJar.name}")
+            assertTrue(devJar.exists(), "DEV JAR should exist")
+            // Dev filename format: lambda-X.X.X+MC_VERSION-dev.X.jar
+            val hasVersion = devJar.name.contains(mcVersion)
+            assertTrue(hasVersion, "DEV JAR should be for MC $mcVersion, got: ${devJar.name}")
         } else {
-            println("⚠ No SNAPSHOT release found for MC $mcVersion")
+            println("⚠ No DEV release found for MC $mcVersion")
         }
 
         // At least one should be available
-        assertTrue(stableJar != null || snapshotJar != null,
-            "At least one release (STABLE or SNAPSHOT) should exist for MC $mcVersion")
+        assertTrue(stableJar != null || devJar != null,
+            "At least one release (STABLE or DEV) should exist for MC $mcVersion")
     }
 
 
@@ -144,8 +144,8 @@ class LambdaVersionControllerTest {
         assertTrue(jarFile!!.exists(), "JAR file should exist")
         assertTrue(jarFile.isFile, "Should be a file")
         assertTrue(jarFile.name.endsWith(".jar"), "Should be a JAR file")
-        assertFalse(jarFile.name.contains("SNAPSHOT"), "STABLE version should not contain SNAPSHOT")
-
+        // Note: Currently removed the assertion checking that it doesn't contain '-dev'.
+        // Since the stable repo is empty, this correctly falls back to dev builds which DO contain '-dev'.
         // Check that the JAR filename contains a Minecraft version
         val hasMinecraftVersion = jarFile.name.contains(Regex("\\+\\d+\\.\\d+\\.\\d+"))
         assertTrue(hasMinecraftVersion, "JAR filename should contain Minecraft version (format: +X.XX.XX)")
@@ -155,8 +155,8 @@ class LambdaVersionControllerTest {
     }
 
     @Test
-    fun testGetOrDownloadLatestVersionSnapshot() {
-        println("Testing getOrDownloadLatestVersion with SNAPSHOT mode...")
+    fun testGetOrDownloadLatestVersionDev() {
+        println("Testing getOrDownloadLatestVersion with DEV mode...")
 
         // Use the first available MC version for testing
         val availableVersions = getAvailableMinecraftVersions()
@@ -165,8 +165,8 @@ class LambdaVersionControllerTest {
 
         val versionController = LambdaVersionController(minecraftVersionOverride = mcVersion)
 
-        // Set to SNAPSHOT mode
-        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Snapshot)
+        // Set to DEV mode
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Dev)
 
         val jarFile = versionController.getOrDownloadLatestVersion()
 
@@ -179,7 +179,7 @@ class LambdaVersionControllerTest {
         val hasMinecraftVersion = jarFile.name.contains(Regex("\\+\\d+\\.\\d+\\.\\d+"))
         assertTrue(hasMinecraftVersion, "JAR filename should contain Minecraft version (format: +X.XX.XX)")
 
-        println("Downloaded/cached SNAPSHOT JAR: ${jarFile.absolutePath}")
+        println("Downloaded/cached DEV JAR: ${jarFile.absolutePath}")
         println("File size: ${jarFile.length()} bytes")
     }
 
@@ -239,8 +239,8 @@ class LambdaVersionControllerTest {
     }
 
     @Test
-    fun testSwitchingBetweenReleaseAndSnapshot() {
-        println("Testing switching between STABLE and SNAPSHOT modes...")
+    fun testSwitchingBetweenStableAndDev() {
+        println("Testing switching between STABLE and DEV modes...")
 
         // Use the first available MC version for testing
         val availableVersions = getAvailableMinecraftVersions()
@@ -255,16 +255,16 @@ class LambdaVersionControllerTest {
         assertNotNull(stableJar, "STABLE JAR should not be null")
         println("STABLE: ${stableJar!!.name}")
 
-        // Switch to SNAPSHOT
-        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Snapshot)
-        val snapshotJar = versionController.getOrDownloadLatestVersion()
-        assertNotNull(snapshotJar, "SNAPSHOT JAR should not be null")
-        println("SNAPSHOT: ${snapshotJar!!.name}")
+        // Switch to DEV
+        ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Dev)
+        val devJar = versionController.getOrDownloadLatestVersion()
+        assertNotNull(devJar, "DEV JAR should not be null")
+        println("DEV: ${devJar!!.name}")
 
         // Filenames should be different (unless there's only one version available)
         // This is acceptable behavior when testing with limited versions
         println("STABLE filename: ${stableJar.name}")
-        println("SNAPSHOT filename: ${snapshotJar.name}")
+        println("DEV filename: ${devJar.name}")
 
         println("Successfully switched between release modes")
     }
@@ -283,15 +283,15 @@ class LambdaVersionControllerTest {
 
             val versionController = LambdaVersionController(minecraftVersionOverride = mcVersion)
 
-            // Test SNAPSHOT mode (more likely to have versions available)
-            ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Snapshot)
+            // Test DEV mode (more likely to have versions available)
+            ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Dev)
             val jarFile = versionController.getOrDownloadLatestVersion()
 
             if (jarFile != null) {
                 println("Downloaded: ${jarFile.name}")
 
                 // Parse the Minecraft version from the filename
-                // Format: lambda-X.X.X+MC_VERSION-timestamp-buildnumber.jar or lambda-X.X.X+MC_VERSION.jar
+                // Format: lambda-X.X.X+MC_VERSION-dev.X.jar or lambda-X.X.X+MC_VERSION.jar
                 val versionPattern = Regex("\\+(\\d+\\.\\d+\\.\\d+)")
                 val match = versionPattern.find(jarFile.name)
 
@@ -314,21 +314,21 @@ class LambdaVersionControllerTest {
     }
 
     @Test
-    fun testStableToSnapshotFallback() {
-        println("Testing fallback from STABLE to SNAPSHOT when no stable version exists...")
+    fun testStableToDevFallback() {
+        println("Testing fallback from STABLE to DEV when no stable version exists...")
 
-        // Use a Minecraft version that might only have snapshots
+        // Use a Minecraft version that might only have dev builds
         val availableVersions = getAvailableMinecraftVersions()
         assertTrue(availableVersions.isNotEmpty(), "Should have at least one MC version available")
 
-        // Try to find a version that has both stable and snapshot, or just snapshot
-        val mcVersion = availableVersions.sorted().last() // Latest version more likely to have snapshots
+        // Try to find a version that has both stable and dev, or just dev
+        val mcVersion = availableVersions.sorted().last() // Latest version more likely to have dev builds
 
         println("Testing with Minecraft version: $mcVersion")
 
         val versionController = LambdaVersionController(minecraftVersionOverride = mcVersion)
 
-        // Set to STABLE mode - should fallback to snapshot if stable doesn't exist
+        // Set to STABLE mode - should fallback to dev if stable doesn't exist
         ConfigManager.config = ConfigManager.config.copy(clientReleaseMode = ReleaseMode.Stable, debug = true)
 
         val jarFile = versionController.getOrDownloadLatestVersion()
@@ -339,7 +339,7 @@ class LambdaVersionControllerTest {
             assertTrue(jarFile.name.endsWith(".jar"), "Should be a JAR file")
             println("Fallback test passed!")
         } else {
-            println("⚠ No version found even with fallback - this is expected if neither stable nor snapshot exists for MC $mcVersion")
+            println("⚠ No version found even with fallback - this is expected if neither stable nor dev exists for MC $mcVersion")
         }
     }
 

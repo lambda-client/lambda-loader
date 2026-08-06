@@ -22,13 +22,15 @@ class Cache(baseDir: File = File("lambda")) {
     }
 
     private fun clearOldVersions(currentFileName: String) {
-        val baseName = currentFileName.substringBeforeLast("-").substringBeforeLast(".")
+        // Extract the artifact name prefix (e.g., "lambda-" from "lambda-0.1.0+1.21.11-dev.1.jar")
+        // by finding the first digit after the artifact name separator
+        val prefixEnd = currentFileName.indexOfFirst { it.isDigit() }
+        val prefix = if (prefixEnd > 0) currentFileName.substring(0, prefixEnd) else return
 
         versionCacheDir.listFiles()?.forEach { file ->
             if (!file.isFile || !file.name.endsWith(".jar") || file.name == currentFileName) return@forEach
 
-            val fileBaseName = file.name.substringBeforeLast("-").substringBeforeLast(".")
-            if (fileBaseName != baseName) return@forEach
+            if (!file.name.startsWith(prefix)) return@forEach
 
             val deleted = file.delete()
             if (ConfigManager.config.debug) {

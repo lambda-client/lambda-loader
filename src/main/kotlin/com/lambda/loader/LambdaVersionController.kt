@@ -14,8 +14,8 @@ class LambdaVersionController(
 ) : BaseMavenVersionController(cache, versionMatchingEnabled = true) {
 
     override val mavenUrl: String = "https://maven.lambda-client.org"
-    override val stableMetaUrl: URL = URI("https://maven.lambda-client.org/releases/com/lambda/lambda/maven-metadata.xml").toURL()
-    override val snapshotMetaUrl: URL = URI("https://maven.lambda-client.org/snapshots/com/lambda/lambda/maven-metadata.xml").toURL()
+    override val stableMetaUrl: URL = URI("https://maven.lambda-client.org/stable/com/lambda/lambda/maven-metadata.xml").toURL()
+    override val devMetaUrl: URL = URI("https://maven.lambda-client.org/dev/com/lambda/lambda/maven-metadata.xml").toURL()
     override val artifactPath: String = "com/lambda/lambda"
     override val artifactName: String = "lambda"
 

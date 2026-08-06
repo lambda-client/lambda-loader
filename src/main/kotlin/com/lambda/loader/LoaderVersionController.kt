@@ -16,8 +16,8 @@ class LoaderVersionController(
 ) : BaseMavenVersionController(cache, versionMatchingEnabled = false) {
 
     override val mavenUrl: String = loaderMavenUrl
-    override val stableMetaUrl: URL = URI("$mavenUrl/releases/com/lambda/lambda-loader/maven-metadata.xml").toURL()
-    override val snapshotMetaUrl: URL = URI("$mavenUrl/snapshots/com/lambda/lambda-loader/maven-metadata.xml").toURL()
+    override val stableMetaUrl: URL = URI("$mavenUrl/stable/com/lambda/lambda-loader/maven-metadata.xml").toURL()
+    override val devMetaUrl: URL = URI("$mavenUrl/dev/com/lambda/lambda-loader/maven-metadata.xml").toURL()
     override val artifactPath: String = "com/lambda/lambda-loader"
     override val artifactName: String = "lambda-loader"
 
@@ -63,8 +63,13 @@ class LoaderVersionController(
 
             val latestVersion = when (getReleaseMode()) {
                 ReleaseMode.Stable -> checkStableVersion()
-                ReleaseMode.Snapshot -> checkSnapshotVersion()
-            }?.substringBefore("+")
+                ReleaseMode.Dev -> checkDevVersion()
+            }?.let { fullVersion ->
+                val base = fullVersion.substringBefore("+")
+                val afterPlus = fullVersion.substringAfter("+", "")
+                val devIndex = afterPlus.indexOf("-dev")
+                if (devIndex >= 0) "$base${afterPlus.substring(devIndex)}" else base
+            }
 
             if (latestVersion == null) {
                 logger.warning("Could not fetch latest loader version")
