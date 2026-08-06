@@ -41,9 +41,6 @@ jobs:
             -PmavenUsername=${{ secrets.MAVEN_USER }} \
             -PmavenPassword=${{ secrets.MAVEN_TOKEN }}
 
-      - name: Rename jar
-        run: mv build/libs/${{ steps.all.outputs.modId }}-${{ steps.all.outputs.modVersion }}.jar build/libs/${{ steps.all.outputs.modId }}-${{ steps.all.outputs.modVersion }}-dev.${{ github.run_number }}.jar
-
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:

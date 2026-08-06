@@ -19,7 +19,14 @@ plugins {
     id("maven-publish")
 }
 
-version = project.property("modVersion") as String
+val isDevBuild = project.hasProperty("mavenType") && project.property("mavenType") == "dev"
+val buildNum = if (project.hasProperty("buildNumber")) project.property("buildNumber") as String else null
+
+version = if (isDevBuild && buildNum != null) {
+    "${project.property("modVersion")}-dev.$buildNum"
+} else {
+    project.property("modVersion") as String
+}
 group = project.property("mavenGroup") as String
 base.archivesName = modId
 
