@@ -1,6 +1,7 @@
 package com.lambda.loader
 
 import com.lambda.loader.config.ConfigManager
+import net.fabricmc.loader.api.metadata.ModOrigin
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -22,19 +23,22 @@ class LoaderUpdater(
      */
     private fun getCurrentLoaderJarPath(): File? {
         return try {
-            val codeSource = this::class.java.protectionDomain.codeSource
-            if (codeSource != null) {
-                val location = codeSource.location
-                val path = location.toURI().path
-                val file = File(path)
+            val fabricLoader = net.fabricmc.loader.api.FabricLoader.getInstance()
+            val loaderMod = fabricLoader.getModContainer("lambda-loader")
 
-                if (file.exists() && file.name.endsWith(".jar")) {
-                    if (ConfigManager.config.debug) logger.info("Current loader JAR: ${file.absolutePath}")
-                    return file
+            if (loaderMod.isPresent) {
+                val origin = loaderMod.get().origin
+                if (origin.kind == ModOrigin.Kind.PATH) {
+                    val paths = origin.paths
+                    if (paths.isNotEmpty()) {
+                        val file = paths[0].toFile()
+                        if (ConfigManager.config.debug) logger.info("Current loader JAR: ${file.absolutePath}")
+                        return file
+                    }
                 }
             }
 
-            logger.warning("Could not determine loader JAR path from code source")
+            logger.warning("Could not determine loader JAR path from Fabric Loader metadata")
             null
         } catch (e: Exception) {
             logger.warning("Error getting current loader JAR path: ${e.message}")
