@@ -11,7 +11,7 @@ val kotlinFabricVersion: String by project
 
 val replacements = file("gradle.properties").inputStream().use { stream ->
     Properties().apply { load(stream) }
-}.map { (k, v) -> k.toString() to v.toString() }.toMap()
+}.map { (k, v) -> k.toString() to v.toString() }.toMap().toMutableMap()
 
 plugins {
     kotlin("jvm") version "2.3.0"
@@ -27,6 +27,7 @@ version = if (isDevBuild && buildNum != null) {
 } else {
     project.property("modVersion") as String
 }
+replacements["modVersion"] = version.toString()
 group = project.property("mavenGroup") as String
 base.archivesName = modId
 
@@ -49,6 +50,7 @@ tasks {
     }
 
     processResources {
+        inputs.properties(replacements)
         filesMatching("fabric.mod.json") { expand(replacements) }
 
         // Forces the task to always run
