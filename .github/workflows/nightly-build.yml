@@ -1,4 +1,4 @@
-name: Dev Build
+name: Nightly Build
 
 on:
   push:
@@ -32,21 +32,16 @@ jobs:
           file: gradle.properties
           all: true
 
-      - name: Publish dev build to Maven
+      - name: Publish snapshot to maven
         id: upload-maven
-        run: |
-          ./gradlew publish \
-            -PmavenType=dev \
-            -PbuildNumber=${{ github.run_number }} \
-            -PmavenUsername=${{ secrets.MAVEN_USER }} \
-            -PmavenPassword=${{ secrets.MAVEN_TOKEN }}
+        run: ./gradlew publish -PmavenType=snapshots -PmavenUsername=${{ secrets.MAVEN_USER }} -PmavenPassword=${{ secrets.MAVEN_TOKEN }}
 
       - name: Rename jar
-        run: mv build/libs/${{ steps.all.outputs.modId }}-${{ steps.all.outputs.modVersion }}.jar build/libs/${{ steps.all.outputs.modId }}-${{ steps.all.outputs.modVersion }}-dev.${{ github.run_number }}.jar
+        run: mv build/libs/${{ steps.all.outputs.modId }}-${{ steps.all.outputs.modVersion }}.jar build/libs/${{ steps.all.outputs.modId }}-${{ steps.all.outputs.modVersion }}-${{ env.COMMIT_HASH }}.jar
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: lambda-loader-nightly
-          path: build/libs/${{ steps.all.outputs.modId }}-${{ steps.all.outputs.modVersion }}-dev.${{ github.run_number }}.jar
+          path: build/libs/${{ steps.all.outputs.modId }}-${{ steps.all.outputs.modVersion }}-${{ env.COMMIT_HASH }}.jar
           if-no-files-found: error

@@ -58,22 +58,20 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
 }
 
+// configure the maven publication
 publishing {
-    val mavenType = project.findProperty("mavenType").toString()
-    val mavenUrl = "https://maven.lambda-client.org/${mavenType}"
-    val versionBase = "$modVersion+$minecraftVersion"
-
-    val finalVersion =
-        if (mavenType == "dev") {
-            val buildNumber = project.findProperty("buildNumber").toString()
-            "$versionBase-dev.$buildNumber"
-        } else versionBase
+    val publishType = project.findProperty("mavenType").toString()
+    val isSnapshots = publishType == "snapshots"
+    val mavenUrl = if (isSnapshots) "https://maven.lambda-client.org/snapshots" else "https://maven.lambda-client.org/releases"
+    val mavenVersion =
+        if (isSnapshots) "$modVersion+$minecraftVersion-SNAPSHOT"
+        else "$modVersion+$minecraftVersion"
 
     publications {
         create<MavenPublication>("maven") {
             groupId = mavenGroup
             artifactId = modId
-            version = finalVersion
+            version = mavenVersion
 
             from(components["java"])
         }
@@ -81,7 +79,7 @@ publishing {
 
     repositories {
         maven(mavenUrl) {
-            name = "lambda-maven"
+            name = "lambda-reposilite"
 
             credentials {
                 username = project.findProperty("mavenUsername").toString()
