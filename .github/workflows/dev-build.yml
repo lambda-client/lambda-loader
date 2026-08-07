@@ -36,7 +36,7 @@ jobs:
         id: upload-maven
         run: |
           ./gradlew publish \
-            -PmavenType=dev \
+            -PmavenType=snapshots \
             -PbuildNumber=${{ github.run_number }} \
             -PmavenUsername=${{ secrets.MAVEN_USER }} \
             -PmavenPassword=${{ secrets.MAVEN_TOKEN }}
