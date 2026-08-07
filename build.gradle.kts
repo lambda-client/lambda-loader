@@ -19,7 +19,8 @@ plugins {
     id("maven-publish")
 }
 
-val isDevBuild = project.hasProperty("mavenType") && project.property("mavenType") == "dev"
+val mavenType = project.findProperty("mavenType")?.toString() ?: "dev"
+val isDevBuild = mavenType == "dev" || mavenType == "snapshots"
 val buildNum = if (project.hasProperty("buildNumber")) project.property("buildNumber") as String else null
 
 version = if (isDevBuild && buildNum != null) {

@@ -34,7 +34,7 @@ jobs:
 
       - name: Publish stable release to Maven
         id: upload-maven
-        run: ./gradlew publish -PmavenType=stable -PmavenUsername=${{ secrets.MAVEN_USER }} -PmavenPassword=${{ secrets.MAVEN_TOKEN }}
+        run: ./gradlew publish -PmavenType=releases -PmavenUsername=${{ secrets.MAVEN_USER }} -PmavenPassword=${{ secrets.MAVEN_TOKEN }}
 
       - name: Create release
         uses: softprops/action-gh-release@v2.0.8
