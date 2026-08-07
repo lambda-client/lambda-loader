@@ -77,8 +77,6 @@ publishing {
         if (mavenType == "dev") {
             val buildNumber = project.findProperty("buildNumber").toString()
             "$versionBase-dev.$buildNumber"
-        } else if (mavenType == "snapshots") {
-            "$versionBase-SNAPSHOT"
         } else versionBase
 
     publications {
